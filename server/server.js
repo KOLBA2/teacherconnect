@@ -18,23 +18,35 @@ const teacherRoutes = require('./routes/teacherRoutes');
 
 const app = express();
 
-const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
-// Vite falls back to the next free port (5174, 5175, ...) if 5173 is already
-// taken, with no obvious error — so any localhost/127.0.0.1 origin is
-// accepted here, not just the exact configured one. Still loopback-only.
+// დაშვებული დომენების სია
+const allowedOrigins = [
+  'https://teacherconnect-one.vercel.app',
+  process.env.CLIENT_URL,
+].filter(Boolean);
+
 const LOCAL_DEV_ORIGIN_REGEX = /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/;
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || origin === CLIENT_URL || LOCAL_DEV_ORIGIN_REGEX.test(origin)) {
-        return callback(null, true);
-      }
+      // 1. თუ მოთხოვნა სერვერიდანვეა ან Postman-იდან (!origin) -> გაატარე
+      if (!origin) return callback(null, true);
+
+      // 2. თუ ლოკალური დეველოპმენტია (localhost) -> გაატარე
+      if (LOCAL_DEV_ORIGIN_REGEX.test(origin)) return callback(null, true);
+
+      // 3. თუ დაშვებულ სიას ემთხვევა -> გაატარე
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+
+      // 4. თუ Vercel-ის ნებისმიერი დომენია (.vercel.app) -> გაატარე
+      if (origin.endsWith('.vercel.app')) return callback(null, true);
+
       return callback(new Error('არ არის დაშვებული CORS პოლიტიკით'));
     },
     credentials: true,
   }),
 );
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -85,11 +97,6 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5050;
 let server;
 
-// On a hot restart (nodemon) the previous process may still be releasing the
-// port for a few hundred ms. Rather than crash on EADDRINUSE, wait and retry a
-// bounded number of times — this is what makes `npm run dev:all` stable across
-// rapid restarts. Only a genuinely stuck leftover process (still holding the
-// port after all retries) fails, with an actionable message.
 const MAX_LISTEN_RETRIES = 12;
 const LISTEN_RETRY_MS = 500;
 
@@ -122,9 +129,6 @@ function startServer(attempt = 0) {
 
 startServer();
 
-// Graceful shutdown: close the HTTP listener and drain the PG pool so the port
-// is released cleanly and Supabase pooler connections aren't leaked on every
-// restart. A hard timeout guarantees the process never hangs on exit.
 let shuttingDown = false;
 async function shutdown(signal) {
   if (shuttingDown) return;
@@ -141,10 +145,8 @@ async function shutdown(signal) {
   process.exit(0);
 }
 
-// SIGINT = Ctrl-C; SIGTERM = kill; SIGUSR2 = nodemon's restart signal.
 ['SIGINT', 'SIGTERM', 'SIGUSR2'].forEach((sig) => process.once(sig, () => shutdown(sig)));
 
-// A stray unhandled rejection should be logged, not silently take the API down.
 process.on('unhandledRejection', (reason) => {
   console.error('Unhandled promise rejection:', reason);
 });
