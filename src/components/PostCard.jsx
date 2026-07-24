@@ -1,379 +1,841 @@
-import React, { useState } from 'react';
-import ReportModal from './ReportModal';
+import { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { apiFetch, mediaUrl } from '../utils/api';
+import { useAuth } from '../hooks/useAuth';
+import CheckoutModal from './CheckoutModal';
+import PromoModal from './PromoModal';
+import LessonCostEstimator from './LessonCostEstimator';
+import {
+  CONTACT_CHANNELS,
+  CONTACT_ORDER,
+  AUDIENCE_META,
+  FORMAT_META,
+  SUBJECT_LABEL,
+  LOCATION_LABEL,
+  getSessionId,
+} from '../utils/premium';
 
-export default function PostCard({
-  post,
-  currentUser,
-  users,
-  subscriptions = [],
-  reports = [],
-  highlightedPostId = null,
-  onResolveReportByPostId,
-  onResolveReportByCommentId,
-  onEditPost,
-  onDeletePost,
-  onRatePost,
-  onToggleSave,
-  onAddComment,
-  onDeleteComment,
-  onStartPayment,
-  onCancelCourse,
-  addToast,
-}) {
-  const [showComments, setShowComments] = useState(false);
-  const [commentText, setCommentText] = useState('');
-  const [hoverRating, setHoverRating] = useState(0);
-  const [reportTarget, setReportTarget] = useState(null); // { type: 'post'|'comment', id, text }
+function formatTimestamp(iso) {
+  return new Date(iso).toLocaleString('ka-GE', { dateStyle: 'medium', timeStyle: 'short' });
+}
 
-  const author = users.find(u => u.id === post.userId) || { fullName: 'უცნობი', avatar: '', role: 'student' };
-  const isOwner = currentUser?.id === post.userId;
-  const isSaved = (currentUser?.saved || []).includes(post.id);
+function getInitials(name = '') {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+}
 
-  const isAdmin = currentUser?.email === 'gkolbaia2008@gmail.com';
-  const postReports = reports.filter(r => r.targetId === post.id && r.targetType === 'post');
+// Pretty Georgian phone display: +995 5XX XX XX XX (falls back to the raw value).
+function formatGeoPhone(raw) {
+  let d = (raw || '').toString().replace(/\D/g, '');
+  if (d.startsWith('995')) d = d.slice(3);
+  if (d.length === 9) {
+    return `+995 ${d.slice(0, 3)} ${d.slice(3, 5)} ${d.slice(5, 7)} ${d.slice(7, 9)}`;
+  }
+  return raw;
+}
 
-  // Compute 5-star rating data
-  const postRatings = post.ratings || {};
-  const ratingKeys = Object.keys(postRatings);
-  const ratingCount = ratingKeys.length;
-  const ratingSum = ratingKeys.reduce((sum, key) => sum + postRatings[key], 0);
-  const avgRating = ratingCount > 0 ? (ratingSum / ratingCount).toFixed(1) : '0.0';
-  const currentUserRating = postRatings[currentUser?.id] || 0;
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // Fallback for older browsers / denied clipboard permission.
+    const el = document.createElement('textarea');
+    el.value = text;
+    el.style.position = 'fixed';
+    el.style.opacity = '0';
+    document.body.appendChild(el);
+    el.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(el);
+    return ok;
+  }
+}
 
-  React.useEffect(() => {
-    if (post.id === highlightedPostId) {
-      const hasCommentReports = reports.some(r => r.targetType === 'comment' && post.comments?.some(c => c.id === r.targetId));
-      if (hasCommentReports) {
-        setShowComments(true);
-      }
+export default function PostCard({ post, addToast, onPostUpdated, onPostRemoved }) {
+  const { user, token, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [submittingReport, setSubmittingReport] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [hoverStar, setHoverStar] = useState(0);
+
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [comments, setComments] = useState(null); // null = not loaded yet
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [newComment, setNewComment] = useState('');
+  const [postingComment, setPostingComment] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editText, setEditText] = useState('');
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [promoOpen, setPromoOpen] = useState(false);
+  const [estimatorOpen, setEstimatorOpen] = useState(false);
+
+  const isOwnPost = user?.id === post.teacherId;
+  const canRate = isAuthenticated && !isOwnPost;
+  const canReport = isAuthenticated && !isOwnPost;
+  const isAdminViewer = user?.role === 'admin';
+
+  // Premium presentation is driven by effectivePackage (which already folds in
+  // the teacher's earned VIP status), falling back to the raw package_type.
+  const effectivePackage = post.effectivePackage || post.packageType || 'standard';
+  const isVipPlus = effectivePackage === 'vip_plus';
+  const isVip = effectivePackage === 'vip';
+  const isPremium = isVip || isVipPlus;
+  const premiumCardClass = isVipPlus ? 'post-card-vip-plus' : isVip ? 'post-card-vip' : '';
+
+  const promo = post.promo || null; // { tag, expiresAt } — already filtered to active
+  const audiences = post.targetAudience || [];
+  const contact = post.contact || {};
+  const contactChannels = CONTACT_ORDER.filter((k) => contact[k]);
+  // WhatsApp / Telegram / Messenger action buttons are a VIP / VIP+ perk. Basic
+  // (standard) accounts show only the phone number + a direct Call button.
+  const contactButtonKeys = isPremium ? contactChannels : contactChannels.filter((k) => k === 'phone');
+  const formatMeta = post.format ? FORMAT_META[post.format] : null;
+  const subjectLabel = post.subject ? SUBJECT_LABEL[post.subject] || post.subject : null;
+
+  // Feature 3: WhatsApp lead trigger — a pre-filled inquiry targeting the teacher.
+  const contactHref = (k) => {
+    if (k === 'whatsapp') {
+      const msg = `გამარჯობა! დაინტერესებული ვარ თქვენი გაკვეთილით: "${post.title}"`;
+      return `https://wa.me/${String(contact.whatsapp).replace(/[^\d]/g, '')}?text=${encodeURIComponent(msg)}`;
     }
-  }, [highlightedPostId, post.id, reports]);
+    return CONTACT_CHANNELS[k].href(contact[k]);
+  };
 
-  // Determine if payment button should be visible
-  const showPaymentBtn = author.role === 'teacher' && currentUser && currentUser.id !== post.userId;
-  const isSubscribed = subscriptions.some(s => s.studentId === currentUser?.id && s.postId === post.id);
+  // Log one view per browser session per post (analytics, best-effort).
+  useEffect(() => {
+    if (!post.id) return;
+    const key = `tc_viewed_${post.id}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, '1');
+    } catch {
+      /* private mode — just log the view */
+    }
+    apiFetch(`/posts/${post.id}/view`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: getSessionId() }),
+    }).catch(() => {});
+  }, [post.id]);
 
-  const handleCommentSubmit = (e) => {
-    e.preventDefault();
-    if (!commentText.trim()) return;
-    onAddComment(post.id, commentText.trim());
-    setCommentText('');
+  const handleContactClick = (channel) => {
+    // Fire-and-forget conversion log; navigation to the external link proceeds.
+    apiFetch(`/posts/${post.id}/contact-click`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: getSessionId(), channel }),
+    }).catch(() => {});
+  };
+
+  // Feature 4: bump-up. Payments are off for the demo → the API returns a
+  // friendly "coming soon" which we surface as-is.
+  const handleBump = async () => {
+    try {
+      const data = await apiFetch(`/posts/${post.id}/bump`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      addToast?.(data.message);
+      onPostUpdated?.(post.id, { lastBumpedAt: new Date().toISOString() });
+    } catch (err) {
+      addToast?.(err.message);
+    }
+  };
+
+  const authJsonHeaders = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+  };
+
+  // ── Rating ──
+
+  const handleRate = async (stars) => {
+    if (!canRate) return;
+    try {
+      const data = await apiFetch(`/posts/${post.id}/rate`, {
+        method: 'POST',
+        headers: authJsonHeaders,
+        body: JSON.stringify({ stars }),
+      });
+      onPostUpdated?.(post.id, {
+        avgRating: data.avgRating,
+        ratingCount: data.ratingCount,
+        myRating: data.myRating,
+      });
+      addToast?.(data.message);
+    } catch (err) {
+      addToast?.(err.message, 'error');
+    }
+  };
+
+  const displayedStars = hoverStar || Math.round(post.avgRating || 0);
+
+  // ── Share ──
+
+  const handleShare = async () => {
+    const link = `${window.location.origin}/?post=${post.id}`;
+    const ok = await copyToClipboard(link);
+    addToast?.(ok ? 'პოსტის ბმული დაკოპირდა ✓' : 'ბმულის კოპირება ვერ მოხერხდა', ok ? 'success' : 'error');
+  };
+
+  // ── Save / bookmark ──
+
+  const handleToggleSave = async () => {
+    try {
+      const data = await apiFetch(`/posts/${post.id}/save`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      onPostUpdated?.(post.id, { isSaved: data.saved });
+      addToast?.(data.message);
+    } catch (err) {
+      addToast?.(err.message, 'error');
+    }
+  };
+
+  // ── Report ──
+
+  const handleReportSubmit = async () => {
+    if (!reportReason.trim()) {
+      addToast?.('გთხოვთ მიუთითოთ მიზეზი', 'error');
+      return;
+    }
+    setSubmittingReport(true);
+    try {
+      const data = await apiFetch(`/posts/${post.id}/report`, {
+        method: 'POST',
+        headers: authJsonHeaders,
+        body: JSON.stringify({ reason: reportReason.trim() }),
+      });
+      addToast?.(data.message || 'შეტყობინება გაიგზავნა ✓');
+      setReportOpen(false);
+      setReportReason('');
+    } catch (err) {
+      addToast?.(err.message, 'error');
+    } finally {
+      setSubmittingReport(false);
+    }
+  };
+
+  // ── Admin delete ──
+
+  const handleAdminDelete = async () => {
+    if (!window.confirm('დარწმუნებული ხართ, რომ გსურთ ამ პოსტის წაშლა?')) return;
+    setDeleting(true);
+    try {
+      const data = await apiFetch(`/admin/posts/${post.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      addToast?.(data.message || 'პოსტი წაიშალა');
+      onPostRemoved?.(post.id);
+    } catch (err) {
+      addToast?.(err.message, 'error');
+      setDeleting(false);
+    }
+  };
+
+  // ── Comments ──
+
+  const loadComments = async () => {
+    setCommentsLoading(true);
+    try {
+      const data = await apiFetch(`/posts/${post.id}/comments`);
+      setComments(data.comments || []);
+    } catch (err) {
+      addToast?.(err.message, 'error');
+    } finally {
+      setCommentsLoading(false);
+    }
+  };
+
+  const toggleComments = () => {
+    const opening = !commentsOpen;
+    setCommentsOpen(opening);
+    if (opening && comments === null) {
+      loadComments();
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!newComment.trim()) {
+      addToast?.('კომენტარი ცარიელია', 'error');
+      return;
+    }
+    setPostingComment(true);
+    try {
+      const data = await apiFetch(`/posts/${post.id}/comments`, {
+        method: 'POST',
+        headers: authJsonHeaders,
+        body: JSON.stringify({ content: newComment.trim() }),
+      });
+      setComments((prev) => [...(prev || []), data.comment]);
+      setNewComment('');
+      onPostUpdated?.(post.id, { commentCount: (post.commentCount || 0) + 1 });
+      addToast?.(data.message);
+    } catch (err) {
+      addToast?.(err.message, 'error');
+    } finally {
+      setPostingComment(false);
+    }
+  };
+
+  const handleEditSave = async (commentId) => {
+    if (!editText.trim()) {
+      addToast?.('კომენტარი ცარიელია', 'error');
+      return;
+    }
+    try {
+      const data = await apiFetch(`/comments/${commentId}`, {
+        method: 'PUT',
+        headers: authJsonHeaders,
+        body: JSON.stringify({ content: editText.trim() }),
+      });
+      setComments((prev) => prev.map((c) => (c.id === commentId ? data.comment : c)));
+      setEditingId(null);
+      addToast?.(data.message);
+    } catch (err) {
+      addToast?.(err.message, 'error');
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (!window.confirm('წაიშალოს კომენტარი?')) return;
+    try {
+      const data = await apiFetch(`/comments/${commentId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+      onPostUpdated?.(post.id, { commentCount: Math.max(0, (post.commentCount || 1) - 1) });
+      addToast?.(data.message);
+    } catch (err) {
+      addToast?.(err.message, 'error');
+    }
+  };
+
+  const canDeleteComment = (comment) =>
+    isAuthenticated && (comment.userId === user?.id || isOwnPost || isAdminViewer);
+
+  // A VIP post owner may pin one 5★ reviewer's comment to the top.
+  const canFeature = isOwnPost && isPremium;
+  const handleFeatureComment = async (commentId) => {
+    try {
+      const data = await apiFetch(`/posts/${post.id}/comments/${commentId}/feature`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setComments((prev) => {
+        const updated = prev.map((c) => ({
+          ...c,
+          isFeatured: c.id === commentId ? data.featured : false,
+        }));
+        return [...updated].sort((a, b) => (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0));
+      });
+      addToast?.(data.message);
+    } catch (err) {
+      addToast?.(err.message, 'error');
+    }
   };
 
   return (
     <>
-      <div id={`post-${post.id}`} className="glass-panel post-card p-5 rounded-2xl border border-[#ffffff08] transition-all duration-200">
-        
-        {/* Admin Action Banner */}
-        {isAdmin && postReports.length > 0 && (
-          <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3.5 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 font-['Noto_Sans_Georgian']">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 text-red-400 font-bold text-xs uppercase tracking-wider mb-1">
-                <i className="fas fa-exclamation-triangle text-xs animate-pulse"></i> რეპორტირებული განცხადება ({postReports.length})
-              </div>
-              <div className="text-[13px] text-red-300">
-                <span className="font-semibold text-white">მიზეზი:</span>{' '}
-                {postReports.map((r) => r.reason || 'დაზუსტების გარეშე').join(', ')}
-              </div>
-              {postReports.some((r) => r.details) && (
-                <div className="text-[11px] text-[#a1a1aa] mt-1">
-                  <span className="font-semibold text-[#71717a]">დეტალები:</span>{' '}
-                  {postReports.map((r) => r.details).filter(Boolean).join(' | ')}
-                </div>
-              )}
-            </div>
-            <div className="flex gap-2 shrink-0 w-full sm:w-auto mt-2 sm:mt-0">
-              <button
-                onClick={() => onResolveReportByPostId && onResolveReportByPostId(post.id)}
-                className="flex-1 sm:flex-none px-3.5 py-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 text-emerald-400 font-semibold text-xs cursor-pointer transition-all flex items-center justify-center gap-1.5"
-              >
-                <i className="fas fa-check text-[10px]"></i> დატოვება
-              </button>
-              <button
-                onClick={() => onDeletePost && onDeletePost(post.id)}
-                className="flex-1 sm:flex-none px-3.5 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 text-red-400 font-semibold text-xs cursor-pointer transition-all flex items-center justify-center gap-1.5"
-              >
-                <i className="fas fa-trash text-[10px]"></i> წაშლა
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Card Header */}
-        <div className="flex justify-between items-start mb-4">
-          <div className="flex gap-3 items-center">
-            <img
-              src={author.avatar || 'https://ui-avatars.com/api/?name=User'}
-              alt={author.fullName}
-              className="w-10 h-10 rounded-full object-cover border-2 border-[#27272a] shrink-0"
-            />
-            <div>
-              <h3 className="font-semibold text-white m-0 text-[15px] leading-tight font-['Noto_Sans_Georgian']">
-                {post.title}
-              </h3>
-              <p className="text-[12px] text-[#71717a] mt-1 m-0 font-['Noto_Sans_Georgian']">
-                {author.fullName} · {new Date(post.timestamp).toLocaleDateString('ka-GE')}
-              </p>
-            </div>
-          </div>
-
-          {/* Dropdown Options — Owner sees Edit/Delete, Others see Report */}
-          <div className="post-menu">
-            <button className="bg-transparent border-none text-[#71717a] hover:text-white cursor-pointer px-2 py-1 rounded-md transition-colors text-[15px]">
-              <i className="fas fa-ellipsis-v"></i>
-            </button>
-            <div className="post-menu-dropdown font-['Noto_Sans_Georgian']">
-              {isOwner ? (
-                <>
-                  <button
-                    onClick={() => onEditPost(post)}
-                    className="text-[#60a5fa] hover:bg-white/5 w-full text-left py-2 px-3 border-none bg-transparent cursor-pointer flex items-center gap-2"
-                  >
-                    <i className="fas fa-edit text-xs"></i> რედაქტირება
-                  </button>
-                  <button
-                    onClick={() => onDeletePost(post.id)}
-                    className="text-[#f87171] hover:bg-white/5 w-full text-left py-2 px-3 border-none bg-transparent cursor-pointer flex items-center gap-2"
-                  >
-                    <i className="fas fa-trash text-xs"></i> წაშლა
-                  </button>
-                </>
-              ) : (
-                currentUser && (
-                  <button
-                    onClick={() => setReportTarget({ type: 'post', id: post.id, text: `${post.title} — ${post.desc}` })}
-                    className="text-[#fb923c] hover:bg-white/5 w-full text-left py-2 px-3 border-none bg-transparent cursor-pointer flex items-center gap-2"
-                  >
-                    <i className="fas fa-flag text-xs"></i> შეტყობინება
-                  </button>
-                )
-              )}
-            </div>
-          </div>
+    <article
+      id={`post-${post.id}`}
+      className={`post-card bg-[#18181b] border border-[#27272a] rounded-2xl p-5 sm:p-6 shadow-lg transition-all ${premiumCardClass}`}
+    >
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-4">
+        <Link
+          to={`/teachers/${post.teacherId}`}
+          className="w-10 h-10 rounded-full overflow-hidden bg-indigo-500/15 text-indigo-400 flex items-center justify-center font-bold text-[13px] shrink-0 no-underline"
+          title="პროფილის ნახვა"
+        >
+          {post.teacherAvatar ? (
+            <img src={mediaUrl(post.teacherAvatar)} alt="" className="w-full h-full object-cover" />
+          ) : (
+            getInitials(post.teacherName) || '?'
+          )}
+        </Link>
+        <div className="min-w-0">
+          <p className="text-[13px] font-semibold text-white m-0 truncate flex items-center gap-2 flex-wrap">
+            <Link to={`/teachers/${post.teacherId}`} className="text-white no-underline hover:text-indigo-400 transition-colors">
+              {post.teacherName}
+            </Link>
+            {isPremium && (
+              <span className={`vip-badge ${isVipPlus ? 'vip-badge-vip-plus' : 'vip-badge-vip'}`}>
+                <i className={`fas ${isVipPlus ? 'fa-crown' : 'fa-star'}`}></i>
+                {isVipPlus ? 'VIP+' : 'VIP'}
+              </span>
+            )}
+            {post.isVerified && (
+              <span className="verified-badge" title="Verified Expert">
+                <i className="fas fa-circle-check"></i>Verified Expert
+              </span>
+            )}
+          </p>
+          <p className="text-[11px] text-[#71717a] m-0">{formatTimestamp(post.createdAt)}</p>
         </div>
 
-        {/* Post Image */}
-        {post.image && (
-          <img
-            src={post.image}
-            alt={post.title}
-            className="post-image"
-          />
-        )}
+        <div className="ml-auto flex items-center gap-1.5 shrink-0">
+          {isOwnPost && user?.role === 'teacher' && isPremium && (
+            <button
+              onClick={() => setPromoOpen(true)}
+              title="პრომოს მართვა"
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-amber-300 hover:text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-colors cursor-pointer"
+            >
+              <i className="fas fa-tags text-[12px]"></i>
+            </button>
+          )}
+          {isOwnPost && user?.role === 'teacher' && (
+            <button
+              onClick={handleBump}
+              title="პოსტის ამოწევა (2₾ - მალე)"
+              className="h-8 px-2.5 flex items-center gap-1.5 rounded-lg text-sky-300 hover:text-sky-200 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 transition-colors cursor-pointer text-[11px] font-bold"
+            >
+              <i className="fas fa-rocket text-[12px]"></i>
+              ამოწევა
+            </button>
+          )}
+          {isOwnPost && user?.role === 'teacher' && (
+            <button
+              onClick={() => setCheckoutOpen(true)}
+              title="პაკეტის განახლება / Boost"
+              className="h-8 px-2.5 flex items-center gap-1.5 rounded-lg text-fuchsia-300 hover:text-fuchsia-200 bg-fuchsia-500/10 hover:bg-fuchsia-500/20 border border-fuchsia-500/30 transition-colors cursor-pointer text-[11px] font-bold"
+            >
+              <i className="fas fa-bolt text-[12px]"></i>
+              {isPremium ? 'პაკეტი' : 'Boost'}
+            </button>
+          )}
+          {isAuthenticated && user?.role === 'student' && !isOwnPost && (
+            <button
+              onClick={() => navigate(`/book/${post.teacherId}`)}
+              title="გაკვეთილის დაჯავშნა"
+              className="h-8 px-2.5 flex items-center gap-1.5 rounded-lg text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 transition-colors cursor-pointer text-[11px] font-bold"
+            >
+              <i className="fas fa-calendar-plus text-[12px]"></i>
+              დაჯავშნა
+            </button>
+          )}
+          {isAuthenticated && (
+            <button
+              onClick={handleToggleSave}
+              title={post.isSaved ? 'შენახვის გაუქმება' : 'პოსტის შენახვა'}
+              className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors border-none bg-transparent cursor-pointer ${
+                post.isSaved
+                  ? 'text-indigo-400 hover:text-indigo-300 bg-indigo-500/10'
+                  : 'text-[#71717a] hover:text-indigo-400 hover:bg-indigo-500/10'
+              }`}
+            >
+              <i className={`${post.isSaved ? 'fas' : 'far'} fa-bookmark text-[13px]`}></i>
+            </button>
+          )}
+          <button
+            onClick={handleShare}
+            title="ბმულის კოპირება"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-[#71717a] hover:text-indigo-400 hover:bg-indigo-500/10 transition-colors border-none bg-transparent cursor-pointer"
+          >
+            <i className="fas fa-share-alt text-[13px]"></i>
+          </button>
+          {canReport && (
+            <button
+              onClick={() => setReportOpen((v) => !v)}
+              title="პოსტის დარეპორტება"
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-[#71717a] hover:text-amber-400 hover:bg-amber-500/10 transition-colors border-none bg-transparent cursor-pointer"
+            >
+              <i className="fas fa-flag text-[13px]"></i>
+            </button>
+          )}
+          {isAdminViewer && (
+            <button
+              onClick={handleAdminDelete}
+              disabled={deleting}
+              title="პოსტის წაშლა (ადმინი)"
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-[#71717a] hover:text-red-400 hover:bg-red-500/10 transition-colors border-none bg-transparent cursor-pointer disabled:opacity-50"
+            >
+              <i className={`fas ${deleting ? 'fa-circle-notch fa-spin' : 'fa-trash'} text-[13px]`}></i>
+            </button>
+          )}
+        </div>
+      </div>
 
-        {/* Description */}
-        <p className="text-[#a1a1aa] text-[14px] leading-relaxed mb-4 whitespace-pre-wrap font-['Noto_Sans_Georgian']">
-          {post.desc}
+      {/* Promo banner */}
+      {promo && (
+        <div className="mb-3">
+          <span className="promo-badge">
+            <i className="fas fa-fire"></i>
+            {promo.tag}
+          </span>
+        </div>
+      )}
+
+      {/* Body */}
+      <h3 className="text-lg font-bold text-white mb-2 mt-0">{post.title}</h3>
+      <p className="text-[#a1a1aa] text-[14px] leading-relaxed whitespace-pre-wrap m-0">{post.content}</p>
+
+      {/* Post image (VIP/VIP+) */}
+      {post.imageUrl && (
+        <img
+          src={mediaUrl(post.imageUrl)}
+          alt=""
+          loading="lazy"
+          className="w-full max-h-80 object-cover rounded-xl border border-[#27272a] mt-3"
+        />
+      )}
+
+      {/* Meta row: price · format · subject · grade levels */}
+      {(post.price != null || formatMeta || subjectLabel || audiences.length > 0) && (
+        <div className="flex flex-wrap items-center gap-1.5 mt-3">
+          {post.price != null && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-[11px] font-bold text-emerald-400">
+              <i className="fas fa-tag text-[10px]"></i>₾{post.price}/სთ
+            </span>
+          )}
+          {subjectLabel && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/25 text-[11px] font-semibold text-indigo-300">
+              <i className="fas fa-book text-[10px]"></i>
+              {subjectLabel}
+            </span>
+          )}
+          {formatMeta && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.03] border border-[#27272a] text-[11px] font-semibold text-[#a1a1aa]">
+              <i className={`fas ${formatMeta.icon} text-[10px] text-sky-400`}></i>
+              {formatMeta.label}
+            </span>
+          )}
+          {post.city && LOCATION_LABEL[post.city] && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.03] border border-[#27272a] text-[11px] font-semibold text-[#a1a1aa]">
+              <i className={`fas ${post.city === 'online' ? 'fa-wifi' : 'fa-location-dot'} text-[10px] text-emerald-400`}></i>
+              {post.city === 'online' ? 'ონლაინ' : LOCATION_LABEL[post.city]}
+            </span>
+          )}
+          {audiences.map((key) => {
+            const meta = AUDIENCE_META[key];
+            if (!meta) return null;
+            return (
+              <span
+                key={key}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.03] border border-[#27272a] text-[11px] font-semibold text-[#a1a1aa]"
+              >
+                <i className={`fas ${meta.icon} text-[10px] text-violet-400`}></i>
+                {meta.label}
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Syllabus (Feature 1) + cost estimator toggle (Feature 2) */}
+      {(post.syllabusUrl || post.price != null) && (
+        <div className="flex flex-wrap items-center gap-2 mt-3">
+          {post.syllabusUrl && (
+            <a
+              href={post.syllabusUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/25 text-red-300 text-[12px] font-semibold no-underline hover:bg-red-500/20 transition-colors"
+            >
+              <i className="fas fa-file-pdf"></i>სილაბუსის ნახვა
+            </a>
+          )}
+          {post.price != null && (
+            <button
+              onClick={() => setEstimatorOpen((v) => !v)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-[12px] font-semibold cursor-pointer hover:bg-emerald-500/20 transition-colors"
+            >
+              <i className="fas fa-calculator"></i>ღირებულების კალკულატორი
+              <i className={`fas fa-chevron-${estimatorOpen ? 'up' : 'down'} text-[10px]`}></i>
+            </button>
+          )}
+        </div>
+      )}
+      {estimatorOpen && post.price != null && (
+        <div className="mt-2">
+          <LessonCostEstimator basePrice={post.price} />
+        </div>
+      )}
+
+      {/* Contact zone — the phone number + Call button are visible for EVERY
+          teacher (all tiers). WhatsApp / Telegram quick actions are VIP-only. */}
+      {contactButtonKeys.length > 0 ? (
+        <div className="mt-4 flex flex-col gap-2.5">
+          {contact.phone && (
+            <a
+              href={CONTACT_CHANNELS.phone.href(contact.phone)}
+              onClick={() => handleContactClick('phone')}
+              className="inline-flex items-center gap-2 no-underline w-fit"
+            >
+              <span className="w-7 h-7 rounded-lg bg-emerald-500/15 flex items-center justify-center shrink-0">
+                <i className="fas fa-phone text-emerald-400 text-[12px]"></i>
+              </span>
+              <span className="text-[15px] font-bold text-white tracking-wide">{formatGeoPhone(contact.phone)}</span>
+            </a>
+          )}
+          <div className="flex flex-wrap gap-2">
+            {contactButtonKeys.map((k) => {
+              const ch = CONTACT_CHANNELS[k];
+              return (
+                <a
+                  key={k}
+                  href={contactHref(k)}
+                  target={k === 'phone' ? undefined : '_blank'}
+                  rel="noopener noreferrer"
+                  onClick={() => handleContactClick(k)}
+                  className="contact-btn"
+                  style={{ background: ch.brand }}
+                >
+                  <i className={`${ch.faStyle} ${ch.icon} text-[15px]`}></i>
+                  {ch.cta}
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      ) : isOwnPost ? (
+        <p className="mt-4 text-[12px] text-[#71717a] flex items-center gap-1.5">
+          <i className="fas fa-circle-info text-[11px]"></i>
+          დაამატეთ საკონტაქტო არხები „სტუდიაში“
         </p>
+      ) : null}
 
-        {/* Location Badge */}
-        <div className="mb-4">
-          <span className="badge-brand font-['Noto_Sans_Georgian']">
-            <i className="fas fa-map-marker-alt text-[10px] mr-1"></i>
-            {post.location}
+      {/* Rating + comments toggle row */}
+      <div className="flex items-center justify-between gap-3 mt-4 pt-4 border-t border-[#27272a] flex-wrap">
+        <div className="flex items-center gap-2">
+          <div
+            className="flex items-center"
+            onMouseLeave={() => setHoverStar(0)}
+            title={canRate ? 'შეაფასეთ პოსტი' : undefined}
+          >
+            {[1, 2, 3, 4, 5].map((s) => (
+              <button
+                key={s}
+                onClick={() => handleRate(s)}
+                onMouseEnter={() => canRate && setHoverStar(s)}
+                disabled={!canRate}
+                className={`star-rating-btn text-[15px] ${
+                  s <= displayedStars ? 'text-amber-400' : 'text-[#3f3f46]'
+                } ${canRate ? '' : 'cursor-default'}`}
+              >
+                <i className={`${s <= displayedStars ? 'fas' : 'far'} fa-star`}></i>
+              </button>
+            ))}
+          </div>
+          <span className="text-[12px] text-[#71717a]">
+            {post.ratingCount > 0 ? (
+              <>
+                <span className="text-amber-400 font-bold">{(post.avgRating || 0).toFixed(1)}</span>
+                {' '}({post.ratingCount})
+              </>
+            ) : (
+              'შეფასება არ არის'
+            )}
+            {post.myRating && <span className="ml-1.5 text-indigo-400">· თქვენი: {post.myRating}★</span>}
           </span>
         </div>
 
-        {/* Start Learning / Payment CTA Widget */}
-        {showPaymentBtn && (
-          <div className="mt-1 mb-4 animate-fade-in">
-            {isSubscribed ? (
-              <div className="flex flex-col gap-2">
-                {/* Active course badge */}
-                <div className="w-full text-center py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 font-semibold text-xs flex items-center justify-center gap-1.5 font-['Noto_Sans_Georgian'] shadow-sm">
-                  <i className="fas fa-check-circle text-xs"></i> სწავლა დაწყებულია (აქტიური კურსი ✓)
-                </div>
-                {/* Cancel course button */}
-                <button
-                  onClick={() => onCancelCourse && onCancelCourse(post.id)}
-                  className="w-full text-center py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 hover:border-red-500/40 text-red-400 font-semibold text-xs cursor-pointer transition-all flex items-center justify-center gap-1.5 font-['Noto_Sans_Georgian']"
-                >
-                  <i className="fas fa-times-circle text-xs"></i> კურსის გაუქმება
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => onStartPayment(post)}
-                className="w-full text-center py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold text-xs cursor-pointer border-none shadow-md hover:shadow-indigo-500/10 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 font-['Noto_Sans_Georgian']"
-              >
-                <i className="fas fa-graduation-cap text-xs"></i> სწავლის დაწყება (150 ₾ / თვეში)
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Action Footer */}
-        <div className="flex items-center justify-between border-t border-[#ffffff06] pt-3 mt-2">
-          <div className="flex gap-6 items-center">
-            {/* Interactive 5-Star Rating System */}
-            <div className="flex items-center gap-2">
-              <div className="flex items-center">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    type="button"
-                    onMouseEnter={() => setHoverRating(star)}
-                    onMouseLeave={() => setHoverRating(0)}
-                    onClick={() => onRatePost(post.id, star)}
-                    className="star-rating-btn"
-                    title={`${star} ვარსკვლავით შეფასება`}
-                  >
-                    <i
-                      className={`${
-                        star <= (hoverRating || currentUserRating) ? 'fas' : 'far'
-                      } fa-star text-[14px] transition-all`}
-                      style={{
-                        color: star <= (hoverRating || currentUserRating) ? '#fbbf24' : '#71717a',
-                        textShadow: star <= (hoverRating || currentUserRating) ? '0 0 8px rgba(251,191,36,0.3)' : 'none'
-                      }}
-                    ></i>
-                  </button>
-                ))}
-              </div>
-              <span className="text-[12px] text-[#a1a1aa] font-semibold mt-0.5">
-                {avgRating} <span className="text-[#71717a] font-normal">({ratingCount} შეფასება)</span>
-              </span>
-            </div>
-
-            {/* Comment Drawer Toggle */}
-            <button
-              onClick={() => setShowComments(!showComments)}
-              className="flex items-center gap-1.5 bg-transparent border-none cursor-pointer text-xs text-[#71717a] hover:text-[#818cf8] p-1 rounded transition-colors font-['Noto_Sans_Georgian']"
-            >
-              <i className="far fa-comment text-sm"></i>
-              <span>{post.comments?.length || 0} კომენტარი</span>
-            </button>
-          </div>
-
-          {/* Saved bookmark */}
-          <button
-            onClick={() => onToggleSave(post.id)}
-            className="bg-transparent border-none cursor-pointer text-lg p-1 transition-colors rounded hover:text-[#eab308]"
-            style={{ color: isSaved ? '#eab308' : '#71717a' }}
-            title={isSaved ? 'შენახვიდან ამოღება' : 'პოსტის შენახვა'}
-          >
-            <i className={`${isSaved ? 'fas' : 'far'} fa-bookmark`}></i>
-          </button>
-        </div>
-
-        {/* Expanded Comments Panel */}
-        {showComments && (
-          <div className="mt-4 pt-3 border-t border-[#ffffff06] animate-fade-in">
-            <div className="flex flex-col gap-2 max-h-40 overflow-y-auto mb-3 pr-1">
-              {post.comments && post.comments.length > 0 ? (
-                post.comments.map((comment) => {
-                  const commentUser = users.find(u => u.id === comment.userId) || { fullName: 'უცნობი', avatar: '' };
-                  const isCommentOwner = comment.userId === currentUser?.id;
-                  const isCommentReported = reports.some(r => r.targetId === comment.id && r.targetType === 'comment');
-
-                  return (
-                    <div key={comment.id} className="flex gap-2 text-left">
-                      <img
-                        src={commentUser.avatar || 'https://ui-avatars.com/api/?name=User'}
-                        alt={commentUser.fullName}
-                        className="w-7 h-7 rounded-full object-cover shrink-0 mt-0.5"
-                      />
-                      <div className={`rounded-xl p-2 flex-1 border transition-colors ${
-                        isCommentReported 
-                          ? 'bg-red-500/10 border-red-500/25' 
-                          : 'bg-black/35 border-[#27272a]/60'
-                      }`}>
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-[12px] font-semibold text-[#818cf8] font-['Noto_Sans_Georgian']">
-                            {commentUser.fullName}
-                            {isCommentReported && (
-                              <span className="text-red-400 text-[10px] ml-1.5 font-bold uppercase tracking-wider">
-                                ⚠️ შეტყობინებული
-                              </span>
-                            )}
-                          </span>
-                          <div className="flex items-center gap-1.5">
-                            {/* Report comment button — for non-owners, non-admins */}
-                            {currentUser && !isCommentOwner && !isAdmin && (
-                              <button
-                                onClick={() => setReportTarget({ type: 'comment', id: comment.id, text: comment.text })}
-                                className="bg-transparent border-none cursor-pointer text-[#52525b] hover:text-[#fb923c] text-[10px] p-0.5 transition-colors"
-                                title="კომენტარის შეტყობინება"
-                              >
-                                <i className="fas fa-flag"></i>
-                              </button>
-                            )}
-                            
-                            {/* Admin Resolve / Keep comment */}
-                            {isAdmin && isCommentReported && (
-                              <button
-                                onClick={() => onResolveReportByCommentId && onResolveReportByCommentId(comment.id)}
-                                className="bg-transparent border-none cursor-pointer text-emerald-400 hover:text-emerald-300 text-[10px] p-0.5 transition-colors"
-                                title="დატოვება (რეპორტის წაშლა)"
-                              >
-                                <i className="fas fa-check"></i>
-                              </button>
-                            )}
-
-                            {/* Delete comment (own or admin override) */}
-                            {(isCommentOwner || isAdmin) && (
-                              <button
-                                onClick={() => {
-                                  if (isAdmin) {
-                                    if (window.confirm('დარწმუნებული ხართ, რომ გსურთ ამ კომენტარის წაშლა?')) {
-                                      onDeleteComment(post.id, comment.id);
-                                      onResolveReportByCommentId && onResolveReportByCommentId(comment.id);
-                                    }
-                                  } else {
-                                    onDeleteComment(post.id, comment.id);
-                                  }
-                                }}
-                                className="bg-transparent border-none cursor-pointer text-[#71717a] hover:text-[#f87171] text-[10px] p-0.5 transition-colors"
-                                title="კომენტარის წაშლა"
-                              >
-                                <i className="fas fa-trash"></i>
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                        <p className="text-[13px] text-[#a1a1aa] m-0 font-['Noto_Sans_Georgian'] leading-snug">
-                          {comment.text}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <p className="text-xs text-[#52525b] text-center my-2 font-['Noto_Sans_Georgian']">კომენტარები ჯერ არ არის</p>
-              )}
-            </div>
-
-            {/* Comment Form */}
-            <form onSubmit={handleCommentSubmit} className="flex gap-2 items-center">
-              <input
-                type="text"
-                placeholder="კომენტარი..."
-                className="comment-input font-['Noto_Sans_Georgian']"
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-              />
-              <button
-                type="submit"
-                className="bg-transparent border-none cursor-pointer text-[#6366f1] hover:text-[#818cf8] text-base p-1 shrink-0 transition-colors"
-              >
-                <i className="fas fa-paper-plane"></i>
-              </button>
-            </form>
-          </div>
-        )}
+        <button
+          onClick={toggleComments}
+          className="flex items-center gap-1.5 text-[12px] font-semibold text-[#a1a1aa] hover:text-white bg-transparent border-none cursor-pointer transition-colors"
+        >
+          <i className="far fa-comment text-[13px]"></i>
+          კომენტარები ({post.commentCount || 0})
+          <i className={`fas fa-chevron-${commentsOpen ? 'up' : 'down'} text-[10px]`}></i>
+        </button>
       </div>
 
-      {/* Report Modal Portal */}
-      {reportTarget && (
-        <ReportModal
-          type={reportTarget.type}
-          targetId={reportTarget.id}
-          targetText={reportTarget.text}
-          reporterName={currentUser?.fullName}
-          onClose={() => setReportTarget(null)}
-          addToast={addToast || (() => {})}
-        />
+      {/* Report box */}
+      {reportOpen && (
+        <div className="mt-4 pt-4 border-t border-[#27272a] flex flex-col gap-2">
+          <p className="text-[12px] font-semibold text-amber-400 m-0">
+            <i className="fas fa-flag mr-1.5"></i>რატომ არეპორტებთ ამ პოსტს?
+          </p>
+          <textarea
+            className="tc-input resize-none"
+            rows={2}
+            placeholder="მიზეზი..."
+            value={reportReason}
+            onChange={(e) => setReportReason(e.target.value)}
+            autoFocus
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={() => setReportOpen(false)}
+              className="flex-1 py-2 rounded-xl border border-[#3f3f46] hover:border-[#52525b] bg-transparent text-[#a1a1aa] text-[12px] font-semibold cursor-pointer transition-all"
+            >
+              გაუქმება
+            </button>
+            <button
+              onClick={handleReportSubmit}
+              disabled={submittingReport}
+              className="flex-1 py-2 rounded-xl border border-amber-500/30 hover:border-amber-500/50 bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 text-[12px] font-semibold cursor-pointer transition-all disabled:opacity-50"
+            >
+              {submittingReport ? 'იგზავნება...' : 'გაგზავნა'}
+            </button>
+          </div>
+        </div>
       )}
+
+      {/* Comments section */}
+      {commentsOpen && (
+        <div className="mt-4 pt-4 border-t border-[#27272a] flex flex-col gap-3">
+          {commentsLoading ? (
+            <p className="text-[12px] text-[#71717a] m-0 text-center py-2">
+              <i className="fas fa-circle-notch fa-spin mr-1.5"></i>იტვირთება...
+            </p>
+          ) : (
+            <>
+              {(comments || []).length === 0 && (
+                <p className="text-[12px] text-[#52525b] m-0 text-center py-2">
+                  კომენტარები ჯერ არ არის — იყავით პირველი!
+                </p>
+              )}
+              {(comments || []).map((comment) => (
+                <div
+                  key={comment.id}
+                  className={`rounded-xl px-3.5 py-2.5 ${
+                    comment.isFeatured ? 'featured-review' : 'bg-black/25 border border-[#ffffff08]'
+                  }`}
+                >
+                  {comment.isFeatured && (
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400 m-0 mb-1.5 flex items-center gap-1.5">
+                      <i className="fas fa-thumbtack"></i>რჩეული მიმოხილვა
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[12px] font-bold text-white">{comment.userName}</span>
+                    {comment.authorStars === 5 && (
+                      <span className="text-[10px] text-amber-400 font-bold">★★★★★</span>
+                    )}
+                    <span className="text-[10px] text-[#52525b]">
+                      {formatTimestamp(comment.createdAt)}
+                      {comment.updatedAt && ' · რედაქტირებულია'}
+                    </span>
+                    <span className="ml-auto flex items-center gap-1">
+                      {canFeature && (comment.authorStars === 5 || comment.isFeatured) && (
+                        <button
+                          onClick={() => handleFeatureComment(comment.id)}
+                          title={comment.isFeatured ? 'დამაგრების მოხსნა' : 'მიმოხილვის დამაგრება'}
+                          className={`w-6 h-6 flex items-center justify-center rounded bg-transparent border-none cursor-pointer text-[11px] ${
+                            comment.isFeatured
+                              ? 'text-amber-400 hover:text-amber-300'
+                              : 'text-[#52525b] hover:text-amber-400'
+                          }`}
+                        >
+                          <i className="fas fa-thumbtack"></i>
+                        </button>
+                      )}
+                      {isAuthenticated && comment.userId === user?.id && editingId !== comment.id && (
+                        <button
+                          onClick={() => {
+                            setEditingId(comment.id);
+                            setEditText(comment.content);
+                          }}
+                          title="რედაქტირება"
+                          className="w-6 h-6 flex items-center justify-center rounded text-[#52525b] hover:text-indigo-400 bg-transparent border-none cursor-pointer text-[11px]"
+                        >
+                          <i className="fas fa-pen"></i>
+                        </button>
+                      )}
+                      {canDeleteComment(comment) && (
+                        <button
+                          onClick={() => handleDeleteComment(comment.id)}
+                          title="წაშლა"
+                          className="w-6 h-6 flex items-center justify-center rounded text-[#52525b] hover:text-red-400 bg-transparent border-none cursor-pointer text-[11px]"
+                        >
+                          <i className="fas fa-trash"></i>
+                        </button>
+                      )}
+                    </span>
+                  </div>
+
+                  {editingId === comment.id ? (
+                    <div className="flex flex-col gap-2">
+                      <textarea
+                        className="tc-input resize-none text-[13px]"
+                        rows={2}
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        autoFocus
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setEditingId(null)}
+                          className="px-3 py-1.5 rounded-lg border border-[#3f3f46] bg-transparent text-[#a1a1aa] text-[11px] font-semibold cursor-pointer"
+                        >
+                          გაუქმება
+                        </button>
+                        <button
+                          onClick={() => handleEditSave(comment.id)}
+                          className="px-3 py-1.5 rounded-lg border border-indigo-500/30 bg-indigo-500/15 text-indigo-400 text-[11px] font-semibold cursor-pointer"
+                        >
+                          შენახვა
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-[13px] text-[#a1a1aa] m-0 leading-relaxed whitespace-pre-wrap">
+                      {comment.content}
+                    </p>
+                  )}
+                </div>
+              ))}
+
+              {isAuthenticated ? (
+                <div className="flex gap-2 items-start">
+                  <textarea
+                    className="tc-input resize-none flex-1 text-[13px]"
+                    rows={1}
+                    placeholder="დაწერეთ კომენტარი..."
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                  />
+                  <button
+                    onClick={handleAddComment}
+                    disabled={postingComment}
+                    title="კომენტარის გაგზავნა"
+                    className="w-9 h-9 shrink-0 flex items-center justify-center rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white border-none cursor-pointer transition-colors disabled:opacity-50"
+                  >
+                    <i className={`fas ${postingComment ? 'fa-circle-notch fa-spin' : 'fa-paper-plane'} text-[12px]`}></i>
+                  </button>
+                </div>
+              ) : (
+                <p className="text-[11px] text-[#52525b] m-0 text-center">
+                  კომენტარის დასაწერად გაიარეთ ავტორიზაცია
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </article>
+
+    {checkoutOpen && (
+      <CheckoutModal
+        post={post}
+        initialPackage={isPremium ? effectivePackage : 'vip'}
+        onClose={() => setCheckoutOpen(false)}
+        onUpgraded={(postId, fields) => onPostUpdated?.(postId, fields)}
+        addToast={addToast}
+      />
+    )}
+
+    {promoOpen && (
+      <PromoModal
+        post={post}
+        onClose={() => setPromoOpen(false)}
+        onSaved={(promo) => onPostUpdated?.(post.id, { promo })}
+        addToast={addToast}
+      />
+    )}
     </>
   );
 }

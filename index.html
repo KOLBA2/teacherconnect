@@ -1,9 +1,26 @@
 <!DOCTYPE html>
-<html lang="ka" class="dark">
+<html lang="ka" class="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TeacherConnect - Ultra</title>
+    <!-- Apply the saved theme before first paint (default: light) to avoid a flash. -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('tc_theme') || 'light';
+          var root = document.documentElement;
+          root.classList.remove('light', 'dark');
+          root.classList.add(t);
+          root.style.colorScheme = t;
+        } catch (e) {
+          document.documentElement.classList.add('light');
+        }
+      })();
+    </script>
+    <!-- Browser tab favicon — official TeacherConnect logo mark -->
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
     <!-- FontAwesome icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <!-- Google Fonts -->
@@ -11,7 +28,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Georgian:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body class="bg-[#09090b] text-[#e4e4e7] overflow-x-hidden m-0 select-none selection:bg-brand selection:text-white">
+<body class="bg-[#09090b] text-[#e4e4e7] overflow-x-clip m-0 select-none selection:bg-brand selection:text-white">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
 </body>

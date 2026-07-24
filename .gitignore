@@ -3,3 +3,10 @@ dist
 build
 .env
 .DS_Store
+
+# Backend uploads (user-submitted verification documents)
+server/uploads/*
+!server/uploads/.gitkeep
+!server/uploads/verification/
+server/uploads/verification/*
+!server/uploads/verification/.gitkeep
