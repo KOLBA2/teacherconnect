@@ -27,14 +27,6 @@ const STEPS = [
   { n: '3', icon: TrendingUp, title: 'ისწავლე', body: 'შეხვდი ონლაინ ან პირისპირ და შეაფასე გამოცდილება.' },
 ];
 
-// Curated fallback tutors (shown only if the live catalog is empty/unreachable),
-// so the marketing page never renders blank.
-const DEMO_TUTORS = [
-  { id: 'd1', teacherId: null, name: 'ნინო ბერიძე', avatar: null, subject: 'მათემატიკა', tier: 'vip_plus', verified: true, rating: 4.9, reviews: 128, price: 40, city: 'tbilisi', format: 'both' },
-  { id: 'd2', teacherId: null, name: 'გიორგი კვარაცხელია', avatar: null, subject: 'ინგლისური / IELTS', tier: 'vip', verified: false, rating: 4.8, reviews: 74, price: 35, city: 'online', format: 'online' },
-  { id: 'd3', teacherId: null, name: 'ანა მაისურაძე', avatar: null, subject: 'Frontend (React)', tier: 'vip_plus', verified: true, rating: 5.0, reviews: 96, price: 55, city: 'batumi', format: 'online' },
-  { id: 'd4', teacherId: null, name: 'დავით ლომიძე', avatar: null, subject: 'ფიზიკა', tier: 'standard', verified: false, rating: 4.6, reviews: 41, price: 25, city: 'kutaisi', format: 'in_person' },
-];
 
 function initialsOf(name = '') {
   return name.trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
@@ -91,9 +83,9 @@ export default function LandingPage() {
     navigate(qs ? `/feed?${qs}` : '/feed');
   };
 
-  const source = tutors && tutors.length ? tutors : DEMO_TUTORS;
-  const featured = source.filter((t) => t.tier === 'vip_plus' || t.tier === 'vip').slice(0, 4);
-  const recent = [...source]
+  // Use real data only - no demo fallback
+  const featured = (tutors || []).filter((t) => t.tier === 'vip_plus' || t.tier === 'vip').slice(0, 4);
+  const recent = [...(tutors || [])]
     .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
     .slice(0, 4);
 
@@ -186,9 +178,11 @@ export default function LandingPage() {
           <h2 className="m-0 font-extrabold tracking-tight text-[clamp(1.3rem,2.6vw,1.8rem)]" style={{ color: 'var(--lp-text)' }}>
             ახალი დამატებული
           </h2>
-          <Link to="/feed" className="text-[13.5px] font-bold no-underline inline-flex items-center gap-1" style={{ color: 'var(--lp-accent)' }}>
-            კატალოგში გადასვლა <ArrowRight size={15} />
-          </Link>
+          {recent.length > 0 && (
+            <Link to="/feed" className="text-[13.5px] font-bold no-underline inline-flex items-center gap-1" style={{ color: 'var(--lp-accent)' }}>
+              კატალოგში გადასვლა <ArrowRight size={15} />
+            </Link>
+          )}
         </div>
         {tutors === null ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -198,6 +192,19 @@ export default function LandingPage() {
                 <div className="skeleton h-8 w-full rounded-lg" />
               </div>
             ))}
+          </div>
+        ) : recent.length === 0 ? (
+          <div className="lp-card flex flex-col items-center justify-center py-12 text-center">
+            <div className="w-14 h-14 rounded-xl bg-[var(--lp-surface-2)] border border-[var(--lp-border)] flex items-center justify-center mb-4">
+              <GraduationCap size={24} style={{ color: 'var(--lp-text-mute)' }} />
+            </div>
+            <p className="text-[15px] font-bold m-0" style={{ color: 'var(--lp-text)' }}>ჯერჯერობით განცხადებები არ არის</p>
+            <p className="text-[13px] m-0 mt-1 max-w-xs" style={{ color: 'var(--lp-text-mute)' }}>
+              იყავი პირველი — დაამატე შენი განცხადება და დაიწყე მოსწავლეების მოძებნა
+            </p>
+            <Link to="/register" className="mt-4 lp-btn lp-btn-primary inline-flex items-center gap-2">
+              <GraduationCap size={16} /> განცხადების დამატება
+            </Link>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
