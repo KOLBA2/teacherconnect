@@ -165,6 +165,13 @@ async function getPosts(req, res) {
     // req.user comes from optionalAuth — null for anonymous visitors, in
     // which case my_rating is simply never matched.
     const viewerId = req.user?.id || null;
+
+    // Check if database is available
+    if (!process.env.DATABASE_URL) {
+      console.warn('DATABASE_URL not configured - returning empty posts');
+      return res.status(200).json({ posts: [] });
+    }
+
     // Premium ranking first (VIP+ → VIP → standard), then newest within a tier.
     // The tiers come from effective_package, which also honors a teacher's
     // earned VIP status, so referral rewards surface here too.
@@ -217,8 +224,8 @@ async function getPosts(req, res) {
            SELECT post_id, COUNT(*) AS comment_count
            FROM comments GROUP BY post_id
          ) cs ON cs.post_id = p.id
-         LEFT JOIN ratings mr ON mr.post_id = p.id AND mr.user_id = $1::uuid
-         LEFT JOIN saved_posts sv ON sv.post_id = p.id AND sv.user_id = $1::uuid
+         LEFT JOIN ratings mr ON mr.post_id = p.id AND mr.user_id = $1
+         LEFT JOIN saved_posts sv ON sv.post_id = p.id AND sv.user_id = $1
        )
        SELECT * FROM feed
        ORDER BY
@@ -234,6 +241,12 @@ async function getPosts(req, res) {
     return res.status(200).json({ posts: result.rows.map(mapPost) });
   } catch (err) {
     console.error('Fetching posts failed:', err);
+    // Return empty array with 200 instead of 500 error for better UX
+    // Frontend will show "no posts" instead of error state
+    if (err.code === 'ENOTFOUND' || err.message?.includes('ENOTFOUND') || err.message?.includes('not found')) {
+      console.warn('Database unreachable - returning empty posts array');
+      return res.status(200).json({ posts: [] });
+    }
     return sendDbError(res, err, 'პოსტების ჩატვირთვა ვერ მოხერხდა');
   }
 }

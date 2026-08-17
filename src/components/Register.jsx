@@ -191,13 +191,13 @@ export default function Register({ addToast }) {
       {pendingNotice && (
         <div
           role="status"
-          className="mb-5 p-4 rounded-xl border text-sm leading-relaxed flex items-start gap-3 bg-[rgba(99,102,241,0.08)] border-[rgba(99,102,241,0.3)] text-[#a5b4fc]"
+          className="mb-5 p-4 rounded-xl border text-sm leading-relaxed flex items-start gap-3 bg-[rgba(6,182,212,0.08)] border-[rgba(6,182,212,0.3)] text-[#a5b4fc]"
         >
           <i className="fas fa-hourglass-half text-base mt-0.5"></i>
           <div>
             <p className="font-semibold mb-0.5 text-white">რეგისტრაცია გაიგზავნა განსახილველად</p>
             <p className="opacity-90">{pendingNotice}</p>
-            <Link to="/login" className="mt-2 inline-block text-[#818cf8] font-semibold hover:underline">
+            <Link to="/login" className="mt-2 inline-block text-[#22d3ee] font-semibold hover:underline">
               შესვლის გვერდზე დაბრუნება
             </Link>
           </div>
@@ -287,7 +287,7 @@ export default function Register({ addToast }) {
                 Upload Professional Verification/ID Photos
               </label>
               <label className="file-label">
-                <i className="fas fa-images text-[#6366f1]"></i>
+                <i className="fas fa-images text-[#06b6d4]"></i>
                 {verificationFiles.length > 0
                   ? `არჩეულია ${verificationFiles.length} ფაილი ✓`
                   : 'ფაილების არჩევა (PNG/JPG, მაქს. 5)'}

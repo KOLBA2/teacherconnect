@@ -1,5 +1,9 @@
 const { Pool } = require('pg');
-require('dotenv').config();
+const path = require('path');
+
+// Load from server/.env first (where DATABASE_URL lives), fallback to root .env
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 // Verified working live on 2026-07-16: this project runs on Supabase's
 // aws-1 pooler cluster in eu-west-2 (London) — confirmed against AWS's

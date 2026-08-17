@@ -22,9 +22,17 @@ export function AuthProvider({ children }) {
       });
       setUser(data.user);
     } catch (err) {
-      // A network hiccup doesn't mean the token is invalid — only clear it
-      // on an actual auth rejection (expired/invalid token) from the server.
-      if (!err.isNetworkError) {
+      // 401: token is invalid/expired — clear it silently (no console noise).
+      // Network errors: keep the token (transient outage); log for diagnostics.
+      if (err.isAuthError) {
+        setToken(null);
+        setUser(null);
+        localStorage.removeItem(TOKEN_STORAGE_KEY);
+      } else if (err.isNetworkError) {
+        // Transient network failure — don't clear the token but do stop loading.
+        console.warn('AuthContext: network error while verifying session, will retry on next interaction.');
+      } else {
+        // Any other server error: also clear the session defensively.
         setToken(null);
         setUser(null);
         localStorage.removeItem(TOKEN_STORAGE_KEY);

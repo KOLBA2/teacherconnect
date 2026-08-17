@@ -19,7 +19,7 @@ export default function Toast({ toasts, setToasts }) {
           style={{
             padding: '10px 16px',
             borderRadius: '10px',
-            borderLeft: `3px solid ${t.type === 'error' ? '#ef4444' : '#6366f1'}`,
+            borderLeft: `3px solid ${t.type === 'error' ? '#ef4444' : '#06b6d4'}`,
             color: t.type === 'error' ? '#f87171' : '#86efac',
             fontSize: '13px',
             boxShadow: '0 8px 24px rgba(0,0,0,0.4)',

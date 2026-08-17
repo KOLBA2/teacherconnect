@@ -2,108 +2,120 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ════════════════════════════════════════════════════════════════
+   TNET-STYLE MARKETPLACE DESIGN SYSTEM  (MyMarket / MyHome / MyAuto)
+   Flat, high-density, functional. Light is the default; dark is a
+   flat opt-in (no glows/blur). All original class names are kept so
+   markup/logic is untouched — only the visual language changed.
+   Palette: white/#F4F5F7 surfaces · #E5E7EB borders · crisp blue
+   #2563EB accent · #111827/#4B5563/#9CA3AF text hierarchy.
+   ════════════════════════════════════════════════════════════════ */
+
 @layer base {
-  /* Use overflow-x: clip (not hidden) so no horizontal scroll is possible WITHOUT
-     turning html/body into a scroll container — hidden forces overflow-y:auto, which
-     would break `position: sticky` on the navbar. clip prevents scroll and keeps sticky. */
+  /* overflow-x: clip (not hidden) so no horizontal scroll is possible WITHOUT
+     turning html/body into a scroll container (which would break sticky). */
   html, body { overflow-x: clip; max-width: 100%; }
   body {
     font-family: 'Noto Sans Georgian', 'Inter', sans-serif;
-    background-color: #09090b;
-    color: #e4e4e7;
+    background-color: #0e0e11;
+    color: #e5e7eb;
     margin: 0;
+    -webkit-font-smoothing: antialiased;
   }
 }
 
-/* ══════════ LIGHT MODE ══════════
-   The app is authored in hardcoded dark hex values (arbitrary Tailwind
-   classes), so light mode remaps that fixed palette to light equivalents
-   under `html.light`. Kept in one place so the toggle flips the whole app. */
-html.light body { background-color: #f1f5f9; color: #0f172a; }
+/* ══════════ LIGHT MODE (default look) ══════════
+   App markup uses hardcoded dark hex classes; light mode remaps that fixed
+   palette to a clean white/grey marketplace. Kept in one place. */
+html.light body { background-color: #f4f5f7; color: #111827; }
 
-/* Surfaces */
+/* Surfaces — SOLID white cards with thin sharp borders (no glass/blur/glow). */
 html.light .bg-\[\#18181b\],
 html.light .bg-\[\#111113\],
 html.light .bg-\[\#0f0f11\] { background-color: #ffffff !important; }
-html.light .bg-\[\#27272a\] { background-color: #e2e8f0 !important; }
-html.light .bg-\[\#3f3f46\], html.light .bg-\[\#52525b\] { background-color: #cbd5e1 !important; }
-html.light .bg-black\/25, html.light .bg-black\/30, html.light .bg-black\/40 { background-color: #f8fafc !important; }
-html.light .bg-white\/\[0\.02\], html.light .bg-white\/\[0\.03\] { background-color: #f8fafc !important; }
+html.dark .bg-\[\#18181b\],
+html.dark .bg-\[\#111113\],
+html.dark .bg-\[\#0f0f11\] { background-color: #17171b !important; }
 
-/* Borders */
+html.light .bg-\[\#27272a\] { background-color: #eef0f3 !important; }
+html.light .bg-\[\#3f3f46\], html.light .bg-\[\#52525b\] { background-color: #d1d5db !important; }
+html.light .bg-black\/25, html.light .bg-black\/30, html.light .bg-black\/40 { background-color: #f9fafb !important; }
+html.light .bg-white\/\[0\.02\], html.light .bg-white\/\[0\.03\] { background-color: #f9fafb !important; }
+
+/* Borders — crisp 1px grey */
 html.light .border-\[\#27272a\],
 html.light .border-\[\#ffffff08\],
 html.light .border-\[\#ffffff10\],
-html.light .border-\[\#1f1f22\] { border-color: #e2e8f0 !important; }
-html.light .border-\[\#3f3f46\] { border-color: #cbd5e1 !important; }
-html.light .border-\[\#52525b\] { border-color: #94a3b8 !important; }
+html.light .border-\[\#1f1f22\] { border-color: #e5e7eb !important; }
+html.light .border-\[\#3f3f46\] { border-color: #d1d5db !important; }
+html.light .border-\[\#52525b\] { border-color: #9ca3af !important; }
 
-/* Text — secondary/muted → readable slate; headings → near-black */
-html.light .text-\[\#a1a1aa\] { color: #475569 !important; }
-html.light .text-\[\#d4d4d8\] { color: #334155 !important; }
-html.light .text-\[\#71717a\] { color: #64748b !important; }
-html.light .text-\[\#52525b\] { color: #94a3b8 !important; }
-html.light .text-\[\#3f3f46\] { color: #cbd5e1 !important; }
-html.light .text-\[\#e4e4e7\] { color: #0f172a !important; }
-html.light .text-white { color: #0f172a !important; }
+/* Text hierarchy — charcoal / dark-grey / light-grey */
+html.light .text-\[\#a1a1aa\] { color: #4b5563 !important; }
+html.light .text-\[\#d4d4d8\] { color: #374151 !important; }
+html.light .text-\[\#71717a\] { color: #6b7280 !important; }
+html.light .text-\[\#52525b\] { color: #9ca3af !important; }
+html.light .text-\[\#3f3f46\] { color: #d1d5db !important; }
+html.light .text-\[\#e4e4e7\] { color: #111827 !important; }
+html.light .text-white { color: #111827 !important; }
 
-/* Re-assert white text on SOLID colored buttons / gradients (overrides the
-   text-white remap above so buttons stay legible). */
+/* Re-assert white text on SOLID colored buttons (overrides the text-white remap). */
 html.light .bg-indigo-500, html.light .bg-indigo-600,
 html.light .bg-emerald-500, html.light .bg-emerald-600,
-html.light .bg-fuchsia-500,
+html.light .bg-fuchsia-500, html.light .bg-blue-500, html.light .bg-blue-600,
 html.light .bg-gradient-to-r,
 html.light .btn-brand, html.light .contact-btn { color: #ffffff !important; }
 
 /* Inputs */
-html.light .tc-input { background: #ffffff; border-color: #e2e8f0; color: #0f172a; }
-html.light .tc-input::placeholder { color: #94a3b8; }
-html.light .file-label { background: #f8fafc; border-color: #e2e8f0; color: #475569; }
+html.light .tc-input { background: #ffffff; border-color: #d1d5db; color: #111827; }
+html.light .tc-input::placeholder { color: #9ca3af; }
+html.light .file-label { background: #f9fafb; border-color: #e5e7eb; color: #4b5563; }
 
-/* VIP badge text: readable on light surfaces (base colors are tuned for dark). */
-html.light .vip-badge-vip { color: #4338ca; background: rgba(99,102,241,0.12); }
-html.light .vip-badge-vip-plus { color: #a21caf; background: rgba(217,70,239,0.10); }
+/* VIP tags on light surfaces */
+html.light .vip-badge-vip { color: #92400e; background: #fef3c7; border-color: #fcd34d; }
+html.light .vip-badge-vip-plus { color: #ffffff; background: #2563eb; border-color: #1d4ed8; }
 
-/* Glass surfaces (auth card, panels) go solid-light so text stays crisp in light mode. */
-html.light .glass-panel { background: #ffffff; border-color: #e2e8f0 !important; }
-html.light .auth-left-gradient { background: linear-gradient(135deg, rgba(99,102,241,0.10) 0%, transparent 70%); }
+/* Auth / panel surfaces → solid white */
+html.light .glass-panel { background: #ffffff; border-color: #e5e7eb !important; }
+html.light .auth-left-gradient { background: linear-gradient(135deg, rgba(37,99,235,0.08) 0%, transparent 70%); }
 
-/* Theme-aware sticky navbar background (set via .tc-navbar, not inline). */
-.tc-navbar { background: rgba(9,9,11,0.85); }
-html.light .tc-navbar { background: rgba(255,255,255,0.85); border-color: #e2e8f0 !important; }
+/* Header background (set via .tc-navbar, not inline) */
+.tc-navbar { background: #17171b; }
+html.light .tc-navbar { background: #ffffff; border-color: #e5e7eb !important; }
 
-/* ── Glass Panel ── */
+/* ── Panel (formerly glass) — now solid, flat ── */
 .glass-panel {
-  background: rgba(24,24,27,0.72);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: #17171b;
+  border: 1px solid #2a2a30;
 }
 
 /* ── Scrollbar ── */
-::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: #6366f1; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+html.dark ::-webkit-scrollbar-thumb { background: #3f3f46; }
 
-/* ── Form inputs (shared) ── */
+/* ── Form inputs (shared) — flat with crisp blue focus ring ── */
 .tc-input {
   width: 100%;
-  background: #09090b;
-  border: 1px solid #27272a;
-  border-radius: 10px;
+  background: #17171b;
+  border: 1px solid #2a2a30;
+  border-radius: 8px;
   padding: 10px 14px;
   font-size: 14px;
-  color: #e4e4e7;
+  color: #e5e7eb;
   outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color 0.15s, box-shadow 0.15s;
   font-family: inherit;
 }
 .tc-input:focus {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.20);
 }
-.tc-input::placeholder { color: #52525b; }
+.tc-input::placeholder { color: #6b7280; }
+.tc-input:hover:not(:focus) { border-color: #3f3f46; }
+html.light .tc-input:hover:not(:focus) { border-color: #9ca3af; }
 
 select.tc-input { cursor: pointer; }
 textarea.tc-input { resize: vertical; min-height: 100px; }
@@ -111,178 +123,412 @@ textarea.tc-input { resize: vertical; min-height: 100px; }
 /* ── Auth card ── */
 #auth-section {
   min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  z-index: 10;
+  display: flex; align-items: center; justify-content: center;
+  position: relative; z-index: 10;
   padding: 1rem;
 }
-
-.auth-left-gradient {
-  background: linear-gradient(135deg, rgba(99,102,241,0.18) 0%, transparent 70%);
-}
+.auth-left-gradient { background: linear-gradient(135deg, rgba(37,99,235,0.14) 0%, transparent 70%); }
 
 /* ── Toast ── */
 #toast-container {
-  position: fixed;
-  top: 1.25rem; right: 1.25rem;
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  pointer-events: none;
+  position: fixed; top: 1.25rem; right: 1.25rem; z-index: 100;
+  display: flex; flex-direction: column; gap: 10px; pointer-events: none;
 }
-.toast-item {
-  pointer-events: auto;
-}
+.toast-item { pointer-events: auto; }
 
-/* ── Brand button ── */
+/* ── Brand button (solid blue) ── */
 .btn-brand {
-  background: #6366f1;
+  background: #2563eb;
   color: #fff;
   font-weight: 600;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 10px 20px;
   cursor: pointer;
   font-family: inherit;
   font-size: 14px;
-  transition: background 0.2s, transform 0.1s;
+  transition: background 0.15s, transform 0.1s;
   width: 100%;
 }
-.btn-brand:hover { background: #4f46e5; }
-.btn-brand:active { transform: scale(0.97); }
-.btn-brand:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-brand:hover { background: #1d4ed8; }
+.btn-brand:active { transform: scale(0.98); }
+.btn-brand:disabled { opacity: 0.55; cursor: not-allowed; }
 
-/* ── Navbar drawer + dropdown animations ── */
+/* ── Navbar drawer + dropdown animations (functional, subtle) ── */
 @keyframes slideInLeft { from { transform: translateX(-100%); } to { transform: translateX(0); } }
-.animate-slide-in-left { animation: slideInLeft 0.22s ease-out; }
+.animate-slide-in-left { animation: slideInLeft 0.2s ease-out; }
 @keyframes navFadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-.animate-fade-in { animation: navFadeIn 0.14s ease-out; }
+.animate-fade-in { animation: navFadeIn 0.12s ease-out; }
 
-#feed-container { max-width: 680px; margin: 0 auto; }
+#feed-container { max-width: 1280px; margin: 0 auto; }
+
+/* ══════════ DISCOVER / SEARCH (marketplace) ══════════ */
+.discover-bar {
+  background: #17171b;
+  border: 1px solid #2a2a30;
+  border-radius: 10px;
+}
+html.light .discover-bar { background: #ffffff; border-color: #e5e7eb; }
+
+.discover-search {
+  background: #0e0e11;
+  border: 1px solid #2a2a30;
+  color: #e5e7eb;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  font-family: inherit;
+}
+.discover-search::placeholder { color: #6b7280; }
+.discover-search:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.20);
+}
+html.light .discover-search { background: #ffffff; border-color: #d1d5db; color: #111827; }
+
+/* Shimmer skeleton (neutral), disabled under reduced-motion. */
+@keyframes discover-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.skeleton {
+  background: linear-gradient(90deg, rgba(148,163,184,0.12) 25%, rgba(148,163,184,0.22) 50%, rgba(148,163,184,0.12) 75%);
+  background-size: 200% 100%;
+  animation: discover-shimmer 1.4s linear infinite;
+  border-radius: 6px;
+}
+html.light .skeleton {
+  background: linear-gradient(90deg, #eef0f3 25%, #e2e5ea 50%, #eef0f3 75%);
+  background-size: 200% 100%;
+}
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+
+/* Landing-style search field (kept flat + blue focus). */
+.lp-search-input {
+  width: 100%;
+  background: var(--lp-surface);
+  border: 1px solid var(--lp-border-strong);
+  color: var(--lp-text);
+  border-radius: 8px;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.lp-search-input::placeholder { color: var(--lp-text-mute); }
+.lp-search-input:focus {
+  border-color: var(--lp-accent);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.20);
+}
+
+/* Active filter chip. */
+.lp-chip.is-active {
+  color: #ffffff;
+  border-color: var(--lp-accent);
+  background: var(--lp-accent);
+  font-weight: 700;
+}
+
+/* Real, full-featured post cards → flat marketplace card inside .lp. */
+.lp .post-card {
+  background: var(--lp-surface);
+  border: 1px solid var(--lp-border);
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.lp .post-card:hover {
+  border-color: var(--lp-border-strong);
+  box-shadow: 0 4px 12px rgba(16,24,40,0.10) !important;
+}
+.lp .post-card-vip      { border-color: #fcd34d; }
+.lp .post-card-vip-plus { border-color: #93c5fd; }
 
 /* ── Auth tabs ── */
 .auth-tab {
-  padding-bottom: 8px;
-  font-size: 14px;
-  font-weight: 600;
+  padding-bottom: 8px; font-size: 14px; font-weight: 600;
   background: transparent; border: none; cursor: pointer;
-  font-family: inherit;
-  transition: color 0.2s;
+  font-family: inherit; transition: color 0.15s;
 }
-.auth-tab.active {
-  color: #6366f1;
-  border-bottom: 2px solid #6366f1;
-}
-.auth-tab.inactive { color: #52525b; }
-.auth-tab.inactive:hover { color: #e4e4e7; }
+.auth-tab.active { color: #2563eb; border-bottom: 2px solid #2563eb; }
+.auth-tab.inactive { color: #9ca3af; }
+.auth-tab.inactive:hover { color: #e5e7eb; }
+html.light .auth-tab.inactive:hover { color: #111827; }
 
 /* ── Register scroll ── */
-#register-form {
-  max-height: 420px;
-  overflow-y: auto;
-  padding-right: 4px;
-}
+#register-form { max-height: 420px; overflow-y: auto; padding-right: 4px; }
 
 .file-label {
   display: flex; align-items: center; justify-content: center; gap: 8px;
-  background: #09090b;
-  border: 1px solid #27272a;
-  border-radius: 10px;
+  background: #0e0e11;
+  border: 1px solid #2a2a30;
+  border-radius: 8px;
   padding: 10px 14px;
-  font-size: 13px;
-  color: #a1a1aa;
-  cursor: pointer;
-  transition: border-color 0.2s, color 0.2s;
+  font-size: 13px; color: #9ca3af;
+  cursor: pointer; transition: border-color 0.15s, color 0.15s;
 }
-.file-label:hover { border-color: #6366f1; color: #e4e4e7; }
+.file-label:hover { border-color: #2563eb; color: #e5e7eb; }
+html.light .file-label:hover { color: #111827; }
 
-/* ── Premium (VIP / VIP+) post cards ──
-   Flat, static styling: a clean solid accent border marks premium listings —
-   no pulsing/glowing animation. VIP = indigo; VIP+ = magenta. */
-.post-card-vip {
-  border-color: rgba(99,102,241,0.7) !important;
-}
-.post-card-vip-plus {
-  border-color: rgba(217,70,239,0.75) !important;
-}
+/* ── Premium (VIP / VIP+) post cards — flat accent border ── */
+.post-card-vip      { border-color: #fcd34d !important; }
+.post-card-vip-plus { border-color: #93c5fd !important; }
 
-/* ── VIP badges (static) ── */
+/* ── VIP badges — solid, high-contrast (amber for VIP, blue for VIP+) ── */
 .vip-badge {
   display: inline-flex; align-items: center; gap: 5px;
-  padding: 3px 9px; border-radius: 999px;
-  font-size: 10px; font-weight: 800; letter-spacing: 0.08em;
-  text-transform: uppercase; white-space: nowrap;
+  padding: 4px 10px; border-radius: 6px; line-height: 1;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.06em;
+  text-transform: uppercase; white-space: nowrap; width: fit-content;
+  border: 1px solid transparent;
 }
-.vip-badge-vip {
-  color: #c7d2fe;
-  background: rgba(99,102,241,0.16);
-  border: 1px solid rgba(99,102,241,0.5);
-}
-.vip-badge-vip-plus {
-  color: #f5d0fe;
-  background: rgba(217,70,239,0.16);
-  border: 1px solid rgba(217,70,239,0.5);
-}
+.vip-badge-vip { color: #78350f; background: #fbbf24; border-color: #f59e0b; }
+.vip-badge-vip-plus { color: #ffffff; background: #2563eb; border-color: #1d4ed8; }
 
-/* ── Verified Expert gold badge (VIP+), static ── */
+/* ── Verified badge — simple green check tag ── */
 .verified-badge {
   display: inline-flex; align-items: center; gap: 5px;
-  padding: 3px 9px; border-radius: 999px;
+  padding: 4px 10px; border-radius: 6px; line-height: 1;
   font-size: 10px; font-weight: 800; letter-spacing: 0.02em;
-  color: #1a1205;
-  background: #f59e0b;
-  border: 1px solid rgba(217,119,6,0.9);
-  white-space: nowrap;
+  color: #15803d; background: #dcfce7; border: 1px solid #86efac;
+  white-space: nowrap; width: fit-content;
 }
 
-/* ── Promo / discount badge (high-contrast, static) ── */
+/* ── Promo / discount badge (solid) ── */
 .promo-badge {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 4px 12px; border-radius: 999px;
-  font-size: 11px; font-weight: 800; letter-spacing: 0.01em;
-  color: #1a1205;
-  background: #f59e0b;
-  border: 1px solid rgba(217,119,6,0.9);
+  padding: 4px 12px; border-radius: 6px;
+  font-size: 11px; font-weight: 800;
+  color: #ffffff; background: #ea580c; border: 1px solid #c2410c;
   white-space: nowrap;
 }
 
 /* ── Branded contact channel buttons ── */
 .contact-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 9px 14px; border-radius: 12px;
+  padding: 9px 14px; border-radius: 8px;
   font-size: 13px; font-weight: 700; color: #fff;
-  border: 1px solid rgba(255,255,255,0.14);
+  border: 1px solid rgba(0,0,0,0.06);
   cursor: pointer; text-decoration: none;
-  transition: transform 0.12s ease, filter 0.2s ease;
+  transition: filter 0.15s ease;
 }
-.contact-btn:hover { filter: brightness(1.12); transform: translateY(-1px); }
-.contact-btn:active { transform: translateY(0); }
+.contact-btn:hover { filter: brightness(1.08); }
 
 /* ── Contact paywall: blurred lock for standard posts ── */
-.contact-lock { position: relative; border-radius: 12px; overflow: hidden; }
+.contact-lock { position: relative; border-radius: 8px; overflow: hidden; }
 .contact-lock-blur {
   display: flex; flex-wrap: wrap; gap: 8px;
-  filter: blur(5px);
-  opacity: 0.5;
-  pointer-events: none;
-  user-select: none;
+  filter: blur(5px); opacity: 0.5; pointer-events: none; user-select: none;
 }
 .contact-lock-overlay {
   position: absolute; inset: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-  background: rgba(9,9,11,0.35);
-  border: 1px dashed rgba(245,158,11,0.35);
-  border-radius: 12px;
-  text-align: center;
-  padding: 6px;
+  background: rgba(17,24,39,0.30);
+  border: 1px dashed rgba(234,88,12,0.4);
+  border-radius: 8px; text-align: center; padding: 6px;
 }
+html.light .contact-lock-overlay { background: rgba(255,255,255,0.6); }
 
 /* ── Featured (pinned) review ── */
 .featured-review {
-  border: 1px solid rgba(245,158,11,0.45) !important;
-  background: linear-gradient(180deg, rgba(245,158,11,0.10), rgba(245,158,11,0.02)) !important;
-  box-shadow: 0 0 18px -6px rgba(245,158,11,0.55);
+  border: 1px solid #fcd34d !important;
+  background: #fffbeb !important;
+}
+html.dark .featured-review { background: rgba(245,158,11,0.08) !important; }
+
+/* ════════════════════════════════════════════════════════════════
+   MOTION — one-shot, minimal. A quick fade-in on scroll (NO transform,
+   NO stagger tilt). Fully instant under reduced-motion. Keeps the
+   Reveal component harmless while matching the calm marketplace feel.
+   ════════════════════════════════════════════════════════════════ */
+.reveal { opacity: 0; transition: opacity 0.4s ease; will-change: opacity; }
+.reveal.is-visible { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1 !important; transition: none !important; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   LANDING / SURFACE TOKENS  (scoped to `.lp`)
+   Flat marketplace tokens, theme-aware. Light = default.
+   ════════════════════════════════════════════════════════════════ */
+.lp {
+  --lp-bg: #f4f5f7;
+  --lp-surface: #ffffff;
+  --lp-surface-2: #f9fafb;
+  --lp-border: #e5e7eb;
+  --lp-border-strong: #d1d5db;
+  --lp-text: #111827;
+  --lp-text-dim: #4b5563;
+  --lp-text-mute: #9ca3af;
+  --lp-accent: #2563eb;
+  --lp-accent-2: #1d4ed8;
+  --lp-accent-3: #059669; /* price/success green */
+  --lp-grad: linear-gradient(90deg, #2563eb, #1d4ed8);
+  --lp-grad-soft: rgba(37,99,235,0.08);
+  --lp-card-shadow: 0 1px 2px rgba(16,24,40,0.05);
+  --lp-card-shadow-hover: 0 4px 12px rgba(16,24,40,0.10);
+}
+html.dark .lp {
+  --lp-bg: #0e0e11;
+  --lp-surface: #17171b;
+  --lp-surface-2: #1c1c21;
+  --lp-border: #2a2a30;
+  --lp-border-strong: #3a3a42;
+  --lp-text: #f4f4f5;
+  --lp-text-dim: #a1a1aa;
+  --lp-text-mute: #71717a;
+  --lp-accent: #3b82f6;
+  --lp-accent-2: #60a5fa;
+  --lp-accent-3: #34d399;
+  --lp-grad: linear-gradient(90deg, #3b82f6, #60a5fa);
+  --lp-grad-soft: rgba(59,130,246,0.14);
+  --lp-card-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  --lp-card-shadow-hover: 0 4px 14px rgba(0,0,0,0.5);
+}
+
+.lp {
+  background: var(--lp-bg);
+  color: var(--lp-text);
+  font-family: 'Noto Sans Georgian', 'Inter', sans-serif;
+  overflow-x: clip;
+}
+
+/* Decorative hero backdrops are removed in the flat marketplace look. */
+.lp-aurora, .lp-blob, .lp-gridlines { display: none !important; }
+
+/* Accent display text → crisp solid blue (no gradient-clip). */
+.lp-grad-text {
+  color: var(--lp-accent);
+  -webkit-text-fill-color: currentColor;
+  background: none;
+}
+
+/* Eyebrow / pill label — light blue tag. */
+.lp-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 5px 12px; border-radius: 6px;
+  font-size: 13px; font-weight: 700;
+  color: var(--lp-accent);
+  background: var(--lp-grad-soft);
+  border: 1px solid transparent;
+}
+
+/* ── Cards — flat white, thin border, subtle hover shadow (no lift) ── */
+.lp-card {
+  position: relative;
+  background: var(--lp-surface);
+  border: 1px solid var(--lp-border);
+  border-radius: 12px;
+  box-shadow: var(--lp-card-shadow);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.lp-card:hover {
+  border-color: var(--lp-border-strong);
+  box-shadow: var(--lp-card-shadow-hover);
+}
+
+/* Formerly-glass floating cards → solid white, thin border, flat shadow. */
+.lp-glass {
+  background: var(--lp-surface);
+  border: 1px solid var(--lp-border);
+  border-radius: 10px;
+  box-shadow: var(--lp-card-shadow);
+}
+
+/* Float animation retained only as a no-op (badges are static now). */
+.lp-badge-float, .lp-badge-float-2, .lp-badge-float-3 { animation: none !important; }
+
+/* Subject / category chips — flat, crisp. */
+.lp-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 13px; border-radius: 8px;
+  font-size: 13px; font-weight: 600;
+  color: var(--lp-text-dim);
+  background: var(--lp-surface);
+  border: 1px solid var(--lp-border);
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  text-decoration: none; cursor: pointer;
+}
+.lp-chip:hover {
+  color: var(--lp-accent);
+  border-color: var(--lp-accent);
+  background: var(--lp-grad-soft);
+}
+
+/* ── Buttons — flat, solid, no sheen/glow ── */
+.lp-btn {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 11px 20px; border-radius: 8px;
+  font-size: 14px; font-weight: 700; font-family: inherit;
+  cursor: pointer; text-decoration: none; border: 1px solid transparent;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.lp-btn-primary { color: #fff; background: var(--lp-accent); }
+.lp-btn-primary:hover { background: var(--lp-accent-2); }
+.lp-btn:active { transform: scale(0.99); }
+
+/* Static primary CTA (alias — already flat, no hover intensity change). */
+.lp-btn-static, .lp-btn-static:hover { filter: none !important; transform: none !important; }
+
+/* Secondary / ghost button. */
+.lp-btn-ghost {
+  color: var(--lp-text);
+  background: var(--lp-surface);
+  border: 1px solid var(--lp-border-strong);
+}
+.lp-btn-ghost:hover { border-color: var(--lp-accent); color: var(--lp-accent); }
+
+/* Mock/hero search bar. */
+.lp-search {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; padding: 12px 16px; border-radius: 8px;
+  background: var(--lp-surface); border: 1px solid var(--lp-border-strong);
+  box-shadow: var(--lp-card-shadow); color: var(--lp-text-mute);
+  text-decoration: none; transition: border-color 0.15s ease;
+}
+.lp-search:hover { border-color: var(--lp-accent); }
+
+/* Section kicker label. */
+.lp-kicker {
+  font-size: 12px; font-weight: 800; letter-spacing: 0.10em; text-transform: uppercase;
+  color: var(--lp-accent);
+}
+
+/* Landing tutor "business card" showcase — flat. */
+.lp-tutor {
+  position: relative;
+  background: var(--lp-surface);
+  border: 1px solid var(--lp-border);
+  border-radius: 12px;
+  box-shadow: var(--lp-card-shadow);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+  overflow: hidden;
+}
+.lp-tutor-cover { height: 68px; background: var(--lp-grad); }
+.lp-tutor-avatar { box-shadow: 0 0 0 4px var(--lp-surface); }
+.lp-tutor:hover { border-color: var(--lp-border-strong); box-shadow: var(--lp-card-shadow-hover); }
+/* Actions always visible (no hover-reveal) for touch + clarity. */
+.lp-tutor .lp-tutor-actions { opacity: 1; }
+
+/* Touch comfort. */
+@media (hover: none), (pointer: coarse) {
+  .lp-chip { min-height: 38px; }
+  .lp-btn, .lp-search-input, .tc-input { min-height: 44px; }
+}
+
+/* Static status dot. */
+.lp-dot { width: 8px; height: 8px; border-radius: 999px; background: #16a34a; }
+
+/* ── Feed post cards — flat, thin border, subtle hover shadow ── */
+.post-card { transition: box-shadow 0.15s ease, border-color 0.15s ease; }
+.post-card:hover { border-color: #cbd5e1; box-shadow: 0 4px 12px rgba(16,24,40,0.10); }
+html.dark .post-card:hover { border-color: #3a3a42; box-shadow: 0 4px 14px rgba(0,0,0,0.5); }
+.post-card-vip:hover      { border-color: #f59e0b !important; }
+.post-card-vip-plus:hover { border-color: #2563eb !important; }
+
+/* Highlight ring for shared-link target (one-shot). */
+.post-card-highlighted { box-shadow: 0 0 0 2px #2563eb, 0 0 0 5px rgba(37,99,235,0.18); }
+
+/* Profile avatar ring (matches card surface per theme). */
+.profile-avatar-ring { box-shadow: 0 0 0 4px #17171b; }
+html.light .profile-avatar-ring { box-shadow: 0 0 0 4px #ffffff, 0 1px 3px rgba(16,24,40,0.12); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .btn-brand:active, .contact-btn:active { transform: scale(0.98); }
 }

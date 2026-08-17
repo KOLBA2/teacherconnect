@@ -56,7 +56,7 @@ export default function NavBar() {
   // ── Link model: split into primary (always in the bar ≥1024) and secondary
   // (grouped under the "მეტი ▾" dropdown on desktop, listed in the drawer on mobile). ──
   const primaryItems = [
-    { to: '/', end: true, label: 'კატალოგი', icon: <Compass size={15} strokeWidth={2.2} /> },
+    { to: '/feed', label: 'რეპეტიტორები', icon: <Compass size={15} strokeWidth={2.2} /> },
     { to: '/pricing', label: 'ფასები', icon: <Sparkles size={14} strokeWidth={2.2} className="text-amber-400" /> },
   ];
 

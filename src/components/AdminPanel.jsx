@@ -282,7 +282,7 @@ export default function AdminPanel({ addToast }) {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-[14px] font-bold text-white m-0 truncate">{teacher.name}</p>
-                    <p className="text-[12px] text-[#818cf8] m-0 mt-0.5 truncate">{teacher.email}</p>
+                    <p className="text-[12px] text-[#22d3ee] m-0 mt-0.5 truncate">{teacher.email}</p>
                   </div>
                   <span className="shrink-0 text-[10px] text-[#52525b] whitespace-nowrap">
                     {teacher.profileCreatedAt
@@ -398,7 +398,7 @@ export default function AdminPanel({ addToast }) {
                   )}
                 </span>
                 <span className="text-[#71717a]">
-                  შემატყობინებელი: <span className="text-[#818cf8]">{report.reporterName}</span>
+                  შემატყობინებელი: <span className="text-[#22d3ee]">{report.reporterName}</span>
                   {' · '}
                   {new Date(report.createdAt).toLocaleString('ka-GE')}
                 </span>

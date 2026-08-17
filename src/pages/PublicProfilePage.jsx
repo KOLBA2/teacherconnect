@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { apiFetch, mediaUrl } from '../utils/api';
-import { SUBJECT_LABEL, LOCATION_LABEL, BANNER_CSS, toEmbedUrl } from '../utils/premium';
+import { SUBJECT_LABEL, LOCATION_LABEL, toEmbedUrl } from '../utils/premium';
 import PostCard from '../components/PostCard';
 import CallBackModal from '../components/CallBackModal';
 import ContactButtons from '../components/ContactButtons';
@@ -73,78 +73,85 @@ export default function PublicProfilePage({ addToast }) {
 
   const isVipPlus = profile.tier === 'vip_plus';
   const cover = profile.coverImageUrl;
-  const bannerCss = null; // covers replace banners on the public profile
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 flex flex-col gap-6">
-      {/* Hero */}
-      <div className="rounded-2xl border border-[#27272a] overflow-hidden bg-[#18181b]">
-        {(cover || (bannerCss && BANNER_CSS[bannerCss])) && (
+      {/* Hero — cover banner + clean overlapping avatar (intentional, ring matches
+          the card surface; no messy overlap). Falls back to a clean avatar row
+          when the teacher has no cover. */}
+      <div className="rounded-2xl border border-[#27272a] bg-[#18181b] overflow-hidden">
+        {cover && (
           <div
-            className="h-32 sm:h-40 bg-cover bg-center"
-            style={cover ? { backgroundImage: `url("${mediaUrl(cover)}")` } : { background: BANNER_CSS[bannerCss] }}
+            className="h-28 sm:h-40 bg-cover bg-center"
+            style={{ backgroundImage: `url("${mediaUrl(cover)}")` }}
           ></div>
         )}
-        <div className="p-5 flex items-start gap-4 flex-wrap">
-          <div className={`w-20 h-20 rounded-2xl overflow-hidden bg-indigo-500/15 text-indigo-400 flex items-center justify-center font-bold text-2xl shrink-0 ${cover ? '-mt-16 border-4 border-[#18181b]' : ''}`}>
-            {profile.avatarUrl ? (
-              <img src={mediaUrl(profile.avatarUrl)} alt="" className="w-full h-full object-cover" />
-            ) : (
-              initials(profile.name) || '?'
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-white font-bold text-xl m-0 leading-tight flex items-center gap-2 flex-wrap">
-              {profile.name}
-              {profile.tier !== 'standard' && (
-                <span className={`vip-badge ${isVipPlus ? 'vip-badge-vip-plus' : 'vip-badge-vip'}`}>
-                  <i className={`fas ${isVipPlus ? 'fa-crown' : 'fa-star'}`}></i>
-                  {isVipPlus ? 'VIP+' : 'VIP'}
-                </span>
+        <div className={`px-5 sm:px-6 pb-5 sm:pb-6 ${cover ? '' : 'pt-5 sm:pt-6'}`}>
+          <div className="flex items-end justify-between gap-3">
+            <div
+              className={`w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-indigo-500/15 text-indigo-400 flex items-center justify-center font-bold text-2xl sm:text-3xl shrink-0 ${
+                cover ? '-mt-12 sm:-mt-14 profile-avatar-ring' : 'ring-1 ring-indigo-500/20 shadow-lg'
+              }`}
+            >
+              {profile.avatarUrl ? (
+                <img src={mediaUrl(profile.avatarUrl)} alt="" className="w-full h-full object-cover" />
+              ) : (
+                initials(profile.name) || '?'
               )}
-              {profile.isVerified && (
-                <span className="verified-badge">
-                  <i className="fas fa-circle-check"></i>Verified Expert
-                </span>
-              )}
-            </h1>
-            {profile.bio && (
-              <p className="text-[13px] text-[#a1a1aa] m-0 mt-2 leading-relaxed whitespace-pre-wrap">{profile.bio}</p>
-            )}
-
-            {/* Subjects + locations */}
-            {(profile.subjects.length > 0 || profile.cities.length > 0) && (
-              <div className="flex flex-wrap gap-1.5 mt-3">
-                {profile.subjects.map((s) => (
-                  <span key={s} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/25 text-[11px] font-semibold text-indigo-300">
-                    <i className="fas fa-book text-[10px]"></i>
-                    {SUBJECT_LABEL[s] || s}
-                  </span>
-                ))}
-                {profile.cities.map((c) => (
-                  <span key={c} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.03] border border-[#27272a] text-[11px] font-semibold text-[#a1a1aa]">
-                    <i className={`fas ${c === 'online' ? 'fa-wifi' : 'fa-location-dot'} text-[10px] text-emerald-400`}></i>
-                    {c === 'online' ? 'ონლაინ' : LOCATION_LABEL[c] || c}
-                  </span>
-                ))}
-              </div>
-            )}
+            </div>
+            {/* Admin-only 3-dots quick actions (Grant VIP / VIP+) */}
+            <div className="shrink-0 pb-1">
+              <AdminGrantVipMenu teacherId={profile.id} addToast={addToast} onGranted={load} />
+            </div>
           </div>
 
-          {/* Admin-only 3-dots quick actions (Grant VIP / VIP+) */}
-          <AdminGrantVipMenu teacherId={profile.id} addToast={addToast} onGranted={load} />
-        </div>
+          <h1 className="mt-3 text-white font-extrabold text-xl sm:text-2xl m-0 leading-tight tracking-tight flex items-center gap-2 flex-wrap">
+            {profile.name}
+            {profile.tier !== 'standard' && (
+              <span className={`vip-badge ${isVipPlus ? 'vip-badge-vip-plus' : 'vip-badge-vip'}`}>
+                <i className={`fas ${isVipPlus ? 'fa-crown' : 'fa-star'}`}></i>
+                {isVipPlus ? 'VIP+' : 'VIP'}
+              </span>
+            )}
+            {profile.isVerified && (
+              <span className="verified-badge">
+                <i className="fas fa-circle-check"></i>Verified Expert
+              </span>
+            )}
+          </h1>
+          {profile.bio && (
+            <p className="text-[13px] text-[#a1a1aa] m-0 mt-2 leading-relaxed whitespace-pre-wrap">{profile.bio}</p>
+          )}
 
-        {/* Call Back */}
-        <div className="px-5 pb-5">
-          <button
-            onClick={() => setCallBackOpen(true)}
-            className="w-full py-3 rounded-xl text-white text-[14px] font-bold border-none cursor-pointer flex items-center justify-center gap-2.5"
-            style={{ background: 'linear-gradient(90deg, #10b981, #059669)' }}
-          >
-            <i className="fas fa-phone-volume text-[16px]"></i>
-            📞 ზარის მოთხოვნა (Call Back)
-          </button>
+          {/* Subjects + locations */}
+          {(profile.subjects.length > 0 || profile.cities.length > 0) && (
+            <div className="flex flex-wrap gap-1.5 mt-3">
+              {profile.subjects.map((s) => (
+                <span key={s} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/25 text-[11px] font-semibold text-indigo-300">
+                  <i className="fas fa-book text-[10px]"></i>
+                  {SUBJECT_LABEL[s] || s}
+                </span>
+              ))}
+              {profile.cities.map((c) => (
+                <span key={c} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.03] border border-[#27272a] text-[11px] font-semibold text-[#a1a1aa]">
+                  <i className={`fas ${c === 'online' ? 'fa-wifi' : 'fa-location-dot'} text-[10px] text-emerald-400`}></i>
+                  {c === 'online' ? 'ონლაინ' : LOCATION_LABEL[c] || c}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Call Back */}
+          <div className="mt-5">
+            <button
+              onClick={() => setCallBackOpen(true)}
+              className="w-full py-3 rounded-xl text-white text-[14px] font-bold border-none cursor-pointer flex items-center justify-center gap-2.5 transition-transform active:scale-[0.98]"
+              style={{ background: 'linear-gradient(90deg, #10b981, #059669)' }}
+            >
+              <i className="fas fa-phone-volume text-[16px]"></i>
+              📞 ზარის მოთხოვნა (Call Back)
+            </button>
+          </div>
         </div>
       </div>
 

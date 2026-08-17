@@ -172,31 +172,16 @@ export default function ProfilePage({ addToast }) {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 flex flex-col gap-6">
-      {/* Header — avatar upload (native, any tier) */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => avatarInputRef.current?.click()}
-          title="ავატარის შეცვლა"
-          className="relative w-12 h-12 rounded-full overflow-hidden border border-indigo-500/25 bg-indigo-500/15 flex items-center justify-center shrink-0 cursor-pointer group"
+      {/* Header — studio title */}
+      <div className="flex items-center gap-3.5">
+        <div
+          className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-lg"
+          style={{ background: 'linear-gradient(135deg,#06b6d4,#0ea5e9)', boxShadow: '0 10px 26px -10px rgba(6,182,212,0.6)' }}
         >
-          {avatarSrc ? (
-            <img src={avatarSrc} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <i className="fas fa-user-gear text-indigo-400"></i>
-          )}
-          <span className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-            <i className={`fas ${avatarUploading ? 'fa-circle-notch fa-spin' : 'fa-camera'} text-white text-[13px]`}></i>
-          </span>
-        </button>
-        <input
-          ref={avatarInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => uploadAvatar(e.target.files?.[0])}
-        />
+          <i className="fas fa-chalkboard-user text-white text-lg"></i>
+        </div>
         <div className="min-w-0">
-          <h1 className="text-white font-bold text-xl m-0 leading-tight flex items-center gap-2 flex-wrap">
+          <h1 className="text-white font-extrabold text-2xl m-0 leading-tight tracking-tight flex items-center gap-2 flex-wrap">
             მასწავლებლის სტუდია
             {tier !== 'standard' && (
               <span className={`vip-badge ${isVipPlus ? 'vip-badge-vip-plus' : 'vip-badge-vip'}`}>
@@ -217,18 +202,19 @@ export default function ProfilePage({ addToast }) {
         )}
       </div>
 
-      {/* Profile media — cover banner + avatar, with instant preview (any teacher) */}
+      {/* Profile media — cover + avatar uploaders (any tier). Clean, intentional
+          overlap (theme-matched ring), not the old messy version. */}
       <div className="bg-[#18181b] border border-[#27272a] rounded-2xl overflow-hidden">
         <div
-          className="relative h-32 sm:h-44 bg-cover bg-center bg-gradient-to-r from-indigo-500/20 to-fuchsia-500/20"
+          className="relative h-28 sm:h-36 bg-cover bg-center bg-gradient-to-r from-indigo-500/25 via-violet-500/20 to-fuchsia-500/25"
           style={coverSrc ? { backgroundImage: `url("${coverSrc}")` } : undefined}
         >
           <button
             type="button"
             onClick={() => coverInputRef.current?.click()}
-            className="absolute top-3 right-3 px-3 py-1.5 rounded-lg bg-black/55 hover:bg-black/70 text-white text-[12px] font-semibold flex items-center gap-1.5 border-none cursor-pointer backdrop-blur-sm transition-colors"
+            className="absolute top-3 right-3 px-3 py-1.5 rounded-lg bg-black/55 hover:bg-black/70 text-white text-[12px] font-semibold flex items-center gap-1.5 border-none cursor-pointer backdrop-blur-sm transition-all active:scale-95"
           >
-            <i className={`fas ${coverUploading ? 'fa-circle-notch fa-spin' : 'fa-camera'}`}></i>
+            <i className={`fas ${coverUploading ? 'fa-circle-notch fa-spin' : 'fa-image'}`}></i>
             ქავერის შეცვლა
           </button>
           <input
@@ -238,13 +224,15 @@ export default function ProfilePage({ addToast }) {
             className="hidden"
             onChange={(e) => uploadCover(e.target.files?.[0])}
           />
+        </div>
 
-          {/* Avatar overlapping the cover — reuses the header's avatar input */}
+        <div className="px-5 sm:px-6 pb-5">
+          {/* Avatar overlaps the cover cleanly (ring matches card surface) */}
           <button
             type="button"
             onClick={() => avatarInputRef.current?.click()}
             title="ავატარის შეცვლა"
-            className="group absolute -bottom-10 left-5 w-24 h-24 rounded-2xl overflow-hidden border-4 border-[#18181b] bg-indigo-500/15 flex items-center justify-center cursor-pointer"
+            className="group relative -mt-12 sm:-mt-14 w-24 h-24 rounded-2xl overflow-hidden bg-indigo-500/15 flex items-center justify-center cursor-pointer profile-avatar-ring transition-transform hover:-translate-y-0.5"
           >
             {avatarSrc ? (
               <img src={avatarSrc} alt="" className="w-full h-full object-cover" />
@@ -255,11 +243,16 @@ export default function ProfilePage({ addToast }) {
               <i className={`fas ${avatarUploading ? 'fa-circle-notch fa-spin' : 'fa-camera'} text-white`}></i>
             </span>
           </button>
-        </div>
-        <div className="pt-14 px-5 pb-4">
-          <p className="text-[13px] font-bold text-white m-0">პროფილის ფოტო &amp; ქავერი</p>
-          <p className="text-[12px] text-[#71717a] m-0 mt-0.5">
-            დააჭირეთ ავატარს ან „ქავერის შეცვლას" ფოტოს ასატვირთად — ცვლილება მაშინვე ჩანს გადახედვაში.
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => uploadAvatar(e.target.files?.[0])}
+          />
+          <p className="text-[14px] font-bold text-white m-0 mt-3">პროფილის ფოტო &amp; ქავერი</p>
+          <p className="text-[12px] text-[#71717a] m-0 mt-1 leading-relaxed">
+            დააჭირეთ ავატარს ან „ქავერის შეცვლას" ფოტოს ასატვირთად — ცვლილება მაშინვე ჩანს გადახედვასა და თქვენს საჯარო პროფილზე.
           </p>
         </div>
       </div>

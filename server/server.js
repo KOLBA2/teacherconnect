@@ -15,6 +15,7 @@ const bookingRequestRoutes = require('./routes/bookingRequestRoutes');
 const referralRoutes = require('./routes/referralRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const teacherRoutes = require('./routes/teacherRoutes');
+const { startVipSweepScheduler } = require('./utils/vipSweep');
 
 const app = express();
 
@@ -129,6 +130,11 @@ function startServer(attempt = 0) {
 
 startServer();
 
+// Automatic VIP/VIP+ expiration engine: periodically NULL out any lapsed
+// premium window in bulk (the persistent-process equivalent of a cron job).
+// Access is additionally enforced at read time via NOW() comparisons.
+const stopVipSweep = startVipSweepScheduler();
+
 let shuttingDown = false;
 async function shutdown(signal) {
   if (shuttingDown) return;
@@ -137,6 +143,7 @@ async function shutdown(signal) {
   const forceExit = setTimeout(() => process.exit(0), 4000);
   forceExit.unref();
   try {
+    stopVipSweep();
     await new Promise((resolve) => (server ? server.close(resolve) : resolve()));
     await pool.end();
   } catch (err) {

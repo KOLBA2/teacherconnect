@@ -30,6 +30,11 @@ export async function apiFetch(path, options = {}) {
     const error = new Error(data.message || 'მოთხოვნის შესრულება ვერ მოხერხდა');
     error.status = response.status;
     error.reason = data.reason;
+    // Flag 401s so callers (e.g. AuthContext) can handle unauthenticated
+    // responses silently without flooding the console.
+    if (response.status === 401) {
+      error.isAuthError = true;
+    }
     throw error;
   }
   return data;

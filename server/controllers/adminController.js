@@ -219,21 +219,32 @@ async function blockUser(req, res) {
 async function getAllTeachers(req, res) {
   try {
     const result = await pool.query(
-      `SELECT u.id, u.name, u.email, u.vip_until, u.created_at
+      `SELECT u.id, u.name, u.email, u.vip_until, u.vip_plus_until, u.created_at
          FROM users u
          JOIN teacher_profiles tp ON tp.user_id = u.id
         WHERE u.role = 'teacher' AND tp.status = 'approved'
-        ORDER BY (u.vip_until IS NOT NULL AND u.vip_until > NOW()) DESC, u.name ASC`,
+        ORDER BY (u.vip_plus_until IS NOT NULL AND u.vip_plus_until > NOW()) DESC,
+                 (u.vip_until IS NOT NULL AND u.vip_until > NOW()) DESC,
+                 u.name ASC`,
     );
     const now = Date.now();
     return res.status(200).json({
-      teachers: result.rows.map((r) => ({
-        id: r.id,
-        name: r.name,
-        email: r.email,
-        vipUntil: r.vip_until || null,
-        isVip: r.vip_until ? new Date(r.vip_until).getTime() > now : false,
-      })),
+      teachers: result.rows.map((r) => {
+        const vipActive = r.vip_until ? new Date(r.vip_until).getTime() > now : false;
+        const vipPlusActive = r.vip_plus_until ? new Date(r.vip_plus_until).getTime() > now : false;
+        // Highest active tier wins for the status label.
+        const vipStatus = vipPlusActive ? 'VIP_PLUS' : vipActive ? 'VIP' : 'NONE';
+        return {
+          id: r.id,
+          name: r.name,
+          email: r.email,
+          vipUntil: r.vip_until || null,
+          vipPlusUntil: r.vip_plus_until || null,
+          vipStatus,
+          // Backwards-compatible flag: true when ANY premium window is active.
+          isVip: vipActive || vipPlusActive,
+        };
+      }),
     });
   } catch (err) {
     console.error('Fetching all teachers failed:', err);
@@ -256,9 +267,19 @@ async function grantVip(req, res) {
     return res.status(400).json({ message: 'ხანგრძლივობა უნდა იყოს 1-დან 365 დღემდე' });
   }
 
-  // Whitelisted to exactly two literals, so it is safe to interpolate below.
-  const column = tier === 'vip_plus' ? 'vip_plus_until' : 'vip_until';
   const tierLabel = tier === 'vip_plus' ? 'VIP+' : 'VIP';
+
+  // GREATEST(COALESCE(col, NOW()), NOW()) STACKS onto an already-active window
+  // (extends from its future timestamp) and RESTARTS from now if lapsed/NULL —
+  // guaranteeing exactly `days` are added, never lost or doubled. The SET clause
+  // is built from whitelisted literals only (no user input interpolated).
+  // A VIP+ grant also extends vip_until: VIP+ implies at least VIP coverage, so
+  // every VIP-gated check (contact unlock, limits, admin list) stays consistent.
+  const setClause =
+    tier === 'vip_plus'
+      ? `vip_plus_until = GREATEST(COALESCE(vip_plus_until, NOW()), NOW()) + make_interval(days => $2::int),
+         vip_until      = GREATEST(COALESCE(vip_until, NOW()), NOW()) + make_interval(days => $2::int)`
+      : `vip_until = GREATEST(COALESCE(vip_until, NOW()), NOW()) + make_interval(days => $2::int)`;
 
   try {
     const target = await pool.query('SELECT role FROM users WHERE id = $1', [id]);
@@ -270,10 +291,7 @@ async function grantVip(req, res) {
     }
 
     const result = await pool.query(
-      `UPDATE users
-         SET ${column} = GREATEST(COALESCE(${column}, NOW()), NOW()) + make_interval(days => $2::int)
-       WHERE id = $1
-       RETURNING vip_until, vip_plus_until`,
+      `UPDATE users SET ${setClause} WHERE id = $1 RETURNING vip_until, vip_plus_until`,
       [id, days],
     );
 

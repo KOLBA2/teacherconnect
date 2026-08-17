@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import NavBar from './components/NavBar';
 import Login from './components/Login';
 import Register from './components/Register';
 import AdminPanel from './components/AdminPanel';
 import Toast from './components/Toast';
+import LandingPage from './pages/LandingPage';
 import FeedPage from './pages/FeedPage';
 import NewPostPage from './pages/NewPostPage';
 import SavedPostsPage from './pages/SavedPostsPage';
@@ -17,6 +18,11 @@ import ProfilePage from './pages/ProfilePage';
 import PricingPage from './pages/PricingPage';
 import PublicProfilePage from './pages/PublicProfilePage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import TermsPage from './pages/TermsPage';
+import PrivacyPage from './pages/PrivacyPage';
+import FaqPage from './pages/FaqPage';
+import ContactPage from './pages/ContactPage';
+import Footer from './components/Footer';
 
 function RequireAdmin({ children }) {
   const { user, isAuthenticated } = useAuth();
@@ -53,6 +59,18 @@ function LoadingScreen() {
   );
 }
 
+// Home (`/`): the marketing LandingPage for logged-out visitors, the catalog
+// FeedPage for signed-in users. Shared post links (`/?post=<id>`) always resolve
+// to the feed so those deep links keep working even for logged-out visitors.
+function HomeRoute({ addToast }) {
+  const { isAuthenticated } = useAuth();
+  const [searchParams] = useSearchParams();
+  if (isAuthenticated || searchParams.get('post')) {
+    return <FeedPage addToast={addToast} />;
+  }
+  return <LandingPage />;
+}
+
 export default function App() {
   const { isAuthenticated, loading } = useAuth();
   const [toasts, setToasts] = useState([]);
@@ -70,7 +88,7 @@ export default function App() {
     <div className="max-w-full overflow-x-clip">
       <Toast toasts={toasts} setToasts={setToasts} />
       <NavBar />
-      <main className="max-w-full overflow-x-hidden">
+      <main className="max-w-full overflow-x-clip">
         <Routes>
           <Route
             path="/login"
@@ -149,11 +167,17 @@ export default function App() {
             }
           />
           <Route path="/pricing" element={<PricingPage addToast={addToast} />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/faq" element={<FaqPage />} />
+          <Route path="/contact" element={<ContactPage addToast={addToast} />} />
           <Route path="/teachers/:id" element={<PublicProfilePage addToast={addToast} />} />
-          <Route path="/" element={<FeedPage addToast={addToast} />} />
+          <Route path="/feed" element={<FeedPage addToast={addToast} />} />
+          <Route path="/" element={<HomeRoute addToast={addToast} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+      <Footer />
     </div>
   );
 }

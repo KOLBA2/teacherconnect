@@ -9,14 +9,31 @@ export default {
     extend: {
       colors: {
         dark: {
-          bg: '#09090b',
-          panel: '#18181b',
-          border: '#27272a'
+          bg: '#0b1120',
+          panel: '#0f172a',
+          border: '#1e293b'
         },
         brand: {
-          DEFAULT: '#6366f1',
-          glow: '#818cf8'
-        }
+          DEFAULT: '#2563eb',
+          glow: '#3b82f6'
+        },
+        // ── TNET marketplace palette ──
+        // The app's accent classes (`indigo-*`, `violet-*`, `fuchsia-*`) are all
+        // remapped onto a single crisp-blue family (Tailwind's `blue` scale), so
+        // every existing call site renders in the clean marketplace blue without
+        // editing 270+ usages. VIP vs VIP+ distinction is handled by badge CSS.
+        indigo: {
+          50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd', 400: '#60a5fa',
+          500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a', 950: '#172554',
+        },
+        violet: {
+          50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd', 400: '#60a5fa',
+          500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a', 950: '#172554',
+        },
+        fuchsia: {
+          50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd', 400: '#60a5fa',
+          500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a', 950: '#172554',
+        },
       },
       animation: {
         'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',

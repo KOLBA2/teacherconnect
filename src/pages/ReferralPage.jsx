@@ -24,6 +24,23 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString('ka-GE', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
+// Precise remaining-time label (e.g. "9 დღე და 14 საათი"), computed against the
+// server-issued expiry timestamp. Display only — VIP ACCESS is validated on the
+// server (stats.vipActive derives from vip_until > server NOW()); this never
+// grants access on its own.
+function formatRemaining(iso) {
+  if (!iso) return '';
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return 'ვადა ამოიწურა';
+  const totalMinutes = Math.floor(ms / 60000);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+  if (days > 0) return `${days} დღე და ${hours} საათი`;
+  if (hours > 0) return `${hours} საათი და ${minutes} წუთი`;
+  return `${minutes} წუთი`;
+}
+
 export default function ReferralPage({ addToast }) {
   const { token } = useAuth();
   const [stats, setStats] = useState(null);
@@ -46,6 +63,13 @@ export default function ReferralPage({ addToast }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Re-render every minute so the live VIP countdown stays accurate.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((n) => n + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
 
   const referralLink = stats ? `${window.location.origin}/register?ref=${stats.referralCode}` : '';
 
@@ -100,7 +124,7 @@ export default function ReferralPage({ addToast }) {
       <div
         className={`rounded-2xl p-4 flex items-center gap-3 border ${
           vipActive
-            ? 'border-fuchsia-500/40 bg-gradient-to-r from-fuchsia-500/10 to-indigo-500/10 shadow-[0_0_24px_-6px_rgba(217,70,239,0.5)]'
+            ? 'border-fuchsia-500/40 bg-gradient-to-r from-fuchsia-500/10 to-indigo-500/10 shadow-[0_0_24px_-6px_rgba(59,130,246,0.5)]'
             : 'border-[#27272a] bg-[#18181b]'
         }`}
       >
@@ -108,7 +132,9 @@ export default function ReferralPage({ addToast }) {
         <div className="min-w-0">
           {vipActive ? (
             <>
-              <p className="text-[13px] font-bold text-white m-0">VIP სტატუსი აქტიურია 🎉</p>
+              <p className="text-[13px] font-bold text-white m-0">
+                VIP აქტიურია: {formatRemaining(vipUntil)} 🎉
+              </p>
               <p className="text-[12px] text-[#a1a1aa] m-0 mt-0.5">
                 მოქმედებს {formatDate(vipUntil)}-მდე — თქვენი პოსტები გამორჩეულად ჩანს კატალოგში
               </p>

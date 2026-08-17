@@ -353,11 +353,11 @@ export default function PostCard({ post, addToast, onPostUpdated, onPostRemoved 
       id={`post-${post.id}`}
       className={`post-card bg-[#18181b] border border-[#27272a] rounded-2xl p-5 sm:p-6 shadow-lg transition-all ${premiumCardClass}`}
     >
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-4">
+      {/* Header — avatar top-aligned with the tutor metadata column. */}
+      <div className="flex items-start gap-3 mb-4">
         <Link
           to={`/teachers/${post.teacherId}`}
-          className="w-10 h-10 rounded-full overflow-hidden bg-indigo-500/15 text-indigo-400 flex items-center justify-center font-bold text-[13px] shrink-0 no-underline"
+          className="w-11 h-11 rounded-xl overflow-hidden bg-indigo-500/15 text-indigo-400 flex items-center justify-center font-bold text-[14px] shrink-0 no-underline ring-1 ring-indigo-500/20 shadow-sm"
           title="პროფილის ნახვა"
         >
           {post.teacherAvatar ? (
@@ -366,24 +366,34 @@ export default function PostCard({ post, addToast, onPostUpdated, onPostRemoved 
             getInitials(post.teacherName) || '?'
           )}
         </Link>
-        <div className="min-w-0">
-          <p className="text-[13px] font-semibold text-white m-0 truncate flex items-center gap-2 flex-wrap">
-            <Link to={`/teachers/${post.teacherId}`} className="text-white no-underline hover:text-indigo-400 transition-colors">
-              {post.teacherName}
-            </Link>
-            {isPremium && (
-              <span className={`vip-badge ${isVipPlus ? 'vip-badge-vip-plus' : 'vip-badge-vip'}`}>
-                <i className={`fas ${isVipPlus ? 'fa-crown' : 'fa-star'}`}></i>
-                {isVipPlus ? 'VIP+' : 'VIP'}
-              </span>
-            )}
-            {post.isVerified && (
-              <span className="verified-badge" title="Verified Expert">
-                <i className="fas fa-circle-check"></i>Verified Expert
-              </span>
-            )}
-          </p>
-          <p className="text-[11px] text-[#71717a] m-0">{formatTimestamp(post.createdAt)}</p>
+        <div className="flex-1 min-w-0">
+          {/* Tutor name — its own full-width row; truncates only when genuinely long. */}
+          <Link
+            to={`/teachers/${post.teacherId}`}
+            className="block text-[13px] font-semibold text-white no-underline hover:text-indigo-400 transition-colors truncate"
+          >
+            {post.teacherName}
+          </Link>
+          {/* Status badges — neatly stacked in a column below the name. Each pill
+              is width:fit-content (see .vip-badge/.verified-badge), so it renders
+              whole with rounded corners and never clips. */}
+          {(isPremium || post.isVerified) && (
+            <div className="flex flex-col items-start gap-1.5 mt-1.5">
+              {isPremium && (
+                <span className={`vip-badge ${isVipPlus ? 'vip-badge-vip-plus' : 'vip-badge-vip'}`}>
+                  <i className={`fas ${isVipPlus ? 'fa-crown' : 'fa-star'}`}></i>
+                  {isVipPlus ? 'VIP+' : 'VIP'}
+                </span>
+              )}
+              {post.isVerified && (
+                <span className="verified-badge" title="Verified Expert">
+                  <i className="fas fa-circle-check"></i>Verified Expert
+                </span>
+              )}
+            </div>
+          )}
+          {/* Timestamp — single muted row below the whole badge column. */}
+          <p className="text-[11px] text-[#71717a] m-0 mt-1.5">{formatTimestamp(post.createdAt)}</p>
         </div>
 
         <div className="ml-auto flex items-center gap-1.5 shrink-0">
@@ -403,7 +413,7 @@ export default function PostCard({ post, addToast, onPostUpdated, onPostRemoved 
               className="h-8 px-2.5 flex items-center gap-1.5 rounded-lg text-sky-300 hover:text-sky-200 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 transition-colors cursor-pointer text-[11px] font-bold"
             >
               <i className="fas fa-rocket text-[12px]"></i>
-              ამოწევა
+              <span className="hidden sm:inline">ამოწევა</span>
             </button>
           )}
           {isOwnPost && user?.role === 'teacher' && (
@@ -413,7 +423,7 @@ export default function PostCard({ post, addToast, onPostUpdated, onPostRemoved 
               className="h-8 px-2.5 flex items-center gap-1.5 rounded-lg text-fuchsia-300 hover:text-fuchsia-200 bg-fuchsia-500/10 hover:bg-fuchsia-500/20 border border-fuchsia-500/30 transition-colors cursor-pointer text-[11px] font-bold"
             >
               <i className="fas fa-bolt text-[12px]"></i>
-              {isPremium ? 'პაკეტი' : 'Boost'}
+              <span className="hidden sm:inline">{isPremium ? 'პაკეტი' : 'Boost'}</span>
             </button>
           )}
           {isAuthenticated && user?.role === 'student' && !isOwnPost && (

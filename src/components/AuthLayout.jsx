@@ -44,7 +44,7 @@ export default function AuthLayout({ children }) {
               width: '220px',
               height: '220px',
               borderRadius: '50%',
-              background: 'rgba(99,102,241,0.06)',
+              background: 'rgba(6,182,212,0.06)',
               pointerEvents: 'none',
             }}
           ></div>
